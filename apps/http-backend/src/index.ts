@@ -3,10 +3,11 @@ import jwt from "jsonwebtoken";
 console.log(require.resolve("@repo/backend-comman/config"));
 import { JWT_SECRET } from "@repo/backend-comman/config"
 import { middleware } from "./middleware";
-import { CreateUserSchema } from "@repo/common/types";
 
-// import { CreateUserSchema, SigninSchema, CreateRoomSchema } from '@repo/comman/types';
-// import { prismaClient } from "@repo/db/client";
+
+import { CreateRoomSchema, CreateUserSchema, SigninSchema } from '@repo/common/types';
+import { prismaClient } from "@repo/db/client";
+const PORT = process.env.PORT || 3001;
 
 
 const app = express();
@@ -23,7 +24,7 @@ if(!ParseData.success) {
 }
  
 try {
-await prismaClient.user.create({
+const user = await prismaClient.user.create({
     data: {
         email: ParseData.data.email,
         password: ParseData.data.password,
@@ -32,7 +33,8 @@ await prismaClient.user.create({
 })
 
     res.json({
-        messgae: "you have been signup"
+        messgae: "you have been signup",
+        userId: user.id
     })
 } catch {
     res.status(411).json({
@@ -43,26 +45,72 @@ await prismaClient.user.create({
 
 
 
-app.post("/signin", function(req, res) {
-const username = req.body.username;
+app.post("/signin", async function(req, res) {
+const ParseData = SigninSchema.safeParse(req.body);
+if(!ParseData.success) {
+   res.json({
+    message: "Incorrect Input"
+   })
+   return
+}
+
+const user = await prismaClient.user.findFirst({
+    where: {
+        email: ParseData.data.email,
+        password: ParseData.data.password
+    }
+})
+
+if(!user) {
+    res.status(403).json({
+        message: "Not Authorized"
+    })
+}
+
+
 
 const token = jwt.sign({
-    username
+    userId: user?.id
 }, JWT_SECRET)
 
 
     res.json({
         token
     })
+
 })
 
 
 
-app.post("/room", middleware, function(req, res) {
-
+app.post("/room", middleware, async function(req, res) {
+const ParseData = CreateRoomSchema.safeParse(req.body);
+if(!ParseData.success) {
     res.json({
-        messgae: "you have been signup"
+        message: "Incorrect inputs"
     })
+    return
+}
+
+//@ts-ignore
+const userId = req.userId;
+try {
+const room = await prismaClient.room.create({
+    data: {
+        slug: ParseData.data.name,
+        adminId: userId
+    }
 })
 
-app.listen(3001);
+    res.status.(411).json({
+        roomId: room.id
+    }) } catch(e) {
+     res.json({
+        message: "Room alresdy exist"
+     })
+    }
+})
+
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
+  
