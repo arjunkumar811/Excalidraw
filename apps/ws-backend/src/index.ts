@@ -1,13 +1,41 @@
-import { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { JWT_SECRET } from '@repo/backend-comman/config';
 
 const wss = new WebSocketServer({ port: 8080 });
 
-wss.on('connection', (ws, request) => {
+interface Users {
+    ws: WebSocket;
+    rooms: string[];
+    userId: string;
+}
+
+const users: Users[] = [];
+
+function CheckUser(token: string): string | null {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+
+        if (!decoded || !decoded.userId) {
+            return null;
+        }
+
+        return decoded.userId;
+    } catch (err: any) {
+        if (err.name === 'TokenExpiredError') {
+            console.error('Token expired');
+        } else {
+            console.error('Invalid token:', err.message);
+        }
+        return null;
+    }
+}
+
+wss.on('connection', (ws: WebSocket, request) => {
     const url = request.url;
 
     if (!url) {
+        ws.close();
         return;
     }
 
@@ -16,37 +44,74 @@ wss.on('connection', (ws, request) => {
 
     if (!token) {
         ws.send(JSON.stringify({
-            message: "Unauthorized"
+            message: 'Unauthorized'
         }));
         ws.close();
         return;
     }
 
-    let decoded;
-    try {
-        decoded = jwt.verify(token, JWT_SECRET);
-    } catch (err) {
-        ws.send(JSON.stringify({
-            message: "Invalid token"
-        }));
+    const userAuthenticated = CheckUser(token);
+
+    if (!userAuthenticated) {
         ws.close();
         return;
     }
 
-    if (typeof decoded === "string") {
-        return;
-    }
+    users.push({
+        userId: userAuthenticated,
+        rooms: [],
+        ws,
+    });
 
-    if (!decoded || !(decoded as JwtPayload).username) {
-        ws.close();
-        return;
-    }
+    ws.on('message', function message(data) {
+        let ParseData;
 
-    ws.on('message', (message) => {
-        console.log(`Received message: ${message}`);
+        try {
+            ParseData = JSON.parse(data.toString());
+        } catch (err) {
+            ws.send(JSON.stringify({ message: 'Invalid message format' }));
+            return;
+        }
+
+        if (ParseData.type === 'join_room') {
+            const user = users.find(x => x.ws === ws);
+            if (user) {
+                user.rooms.push(ParseData.roomId);
+            }
+        }
+
+        if (ParseData.type === 'leave_room') {
+            const user = users.find(x => x.ws === ws);
+            if (user) {
+                user.rooms = user.rooms.filter(x => x !== ParseData.room);
+            }
+        }
+
+        if (ParseData.type === 'chat') {
+            const { roomId, message } = ParseData;
+
+            if (!roomId || typeof message !== 'string') {
+                ws.send(JSON.stringify({ message: 'Invalid chat payload' }));
+                return;
+            }
+
+            users.forEach(user => {
+                if (user.rooms.includes(roomId)) {
+                    user.ws.send(JSON.stringify({
+                        type: 'chat',
+                        message: message,
+                        roomId
+                    }));
+                }
+            });
+        }
     });
 
     ws.on('close', () => {
+        const userIndex = users.findIndex(x => x.ws === ws);
+        if (userIndex !== -1) {
+            users.splice(userIndex, 1);
+        }
         console.log('Client disconnected');
     });
 });
