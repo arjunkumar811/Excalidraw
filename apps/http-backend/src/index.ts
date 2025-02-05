@@ -101,13 +101,55 @@ const room = await prismaClient.room.create({
     }
 })
 
-    res.status.(411).json({
+    res.status(411).json({
         roomId: room.id
     }) } catch(e) {
      res.json({
         message: "Room alresdy exist"
      })
     }
+})
+
+
+
+app.get("/chats/:roomId", async (req, res) => {
+    try {
+        const roomId = Number(req.params.roomId);
+        console.log(req.params.roomId);
+        const messages = await prismaClient.chat.findMany({
+            where: {
+                roomId: roomId
+            },
+            orderBy: {
+                id: "desc"
+            },
+            take: 1000
+        });
+
+        res.json({
+            messages
+        })
+    } catch(e) {
+        console.log(e);
+        res.json({
+            messages: []
+        })
+    }
+})
+
+
+
+app.get("/room/:slug", async (req, res) => {
+    const slug = req.params.slug;
+    const room = await prismaClient.room.findFirst({
+        where: {
+            slug
+        }
+    });
+
+    res.json({
+        room
+    })
 })
 
 app.listen(PORT, () => {
