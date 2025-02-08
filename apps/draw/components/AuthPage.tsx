@@ -1,21 +1,23 @@
-"use client"
+"use client";
 
-export function AuthPage({isSignIn}: {
-    isSignIn: boolean
+export function AuthPage({isSignin}: {
+    isSignin: boolean
 }) {
     return <div className="w-screen h-screen flex justify-center items-center">
+        <div className="p-6 m-2 bg-white rounded">
+            <div className="p-2">
+                <input type="text" placeholder="Email"></input>
+            </div>
+            <div className="p-2">
+                
+            </div>
 
-<div className="p-2 m-2 bg-white rounded-lg">
+            <div className="pt-2">
+                <button className="bg-red-200 rounded p-2" onClick={() => {
 
-<input type="text" placeholder="Email"></input>
-<input type="text" placeholder="Password" typeof="password"></input>
-
-<button onClick={() => {
-
-}}>{isSignIn? "Sign in" : "Sign up"}</button>
-
-
-</div>
-
+                }}>{isSignin ? "Sign in" : "Sign up"}</button>
+            </div>
+        </div>
     </div>
+
 }
