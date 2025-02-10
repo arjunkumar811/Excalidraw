@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 console.log(require.resolve("@repo/backend-comman/config"));
 import { JWT_SECRET } from "@repo/backend-comman/config"
 import { middleware } from "./middleware";
-
+import cors from "cors"
 
 import { CreateRoomSchema, CreateUserSchema, SigninSchema } from '@repo/common/types';
 import { prismaClient } from "@repo/db/client";
@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3001;
 
 const app = express();
 app.use(express.json());
+app.use(cors())
 
 app.post("/signup", async function(req, res) {
 

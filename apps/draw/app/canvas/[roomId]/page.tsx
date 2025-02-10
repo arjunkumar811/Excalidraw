@@ -1,8 +1,6 @@
-"use client";
 
-import { Canvas } from "@/components/Canvas";
-import { initDraw } from "@/drawgame";
-import { useEffect, useRef } from "react";
+import { RoomCanvas } from "@/components/RoomCanvas";
+
 
 export default async function CanvasPage({ params }: {
   params: {
@@ -12,5 +10,5 @@ export default async function CanvasPage({ params }: {
   const roomId = (await params).roomId;
   console.log(roomId)
 
-  return <Canvas roomId={roomId} />
+  return <RoomCanvas roomId={roomId} />
 }
