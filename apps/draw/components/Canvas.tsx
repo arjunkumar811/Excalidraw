@@ -18,8 +18,11 @@ export function Canvas({
 
      },[canvasRef]);
 
-     return <div>
-        <canvas ref={canvasRef} width={2000} height={1000}></canvas>
+     return <div style={{
+        height: "100vh",
+        overflow: "hidden"
+     }}>
+        <canvas ref={canvasRef} width={window.innerWidth} height={window.innerHeight}></canvas>
      </div>
 
 
