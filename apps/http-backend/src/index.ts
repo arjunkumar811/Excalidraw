@@ -117,16 +117,22 @@ app.post("/signin", async function (req, res) {
 
 // @ts-ignore
 app.post("/room", middleware, async function (req, res) {
+  console.log("Room creation request received:", req.body);
+  console.log("User ID from middleware:", req.userId);
+  
   const ParseData = CreateRoomSchema.safeParse(req.body);
   if (!ParseData.success) {
-    res.json({
+    console.log("Room validation failed:", ParseData.error);
+    res.status(400).json({
       message: "Incorrect inputs",
+      errors: ParseData.error.errors
     });
     return;
   }
 
   const userId = req.userId;
   if (!userId) {
+    console.log("No user ID found");
     res.status(401).json({
       message: "User not authenticated",
     });
@@ -134,19 +140,52 @@ app.post("/room", middleware, async function (req, res) {
   }
   
   try {
-    const room = await prismaClient.room.create({
-      data: {
-        slug: ParseData.data.name,
-        adminId: userId,
-      },
-    });
+    let roomSlug = ParseData.data.name;
+    let attempt = 0;
+    let room = null;
+    
+    // Try to create room with original name, if it fails, append random suffix
+    while (attempt < 5) {
+      try {
+        console.log("Attempting to create room with slug:", roomSlug);
+        room = await prismaClient.room.create({
+          data: {
+            slug: roomSlug,
+            adminId: userId,
+          },
+        });
+        break; // Success, exit the loop
+      } catch (e: any) {
+        if (e.code === 'P2002' && e.meta?.target?.includes('slug')) {
+          // Unique constraint violation on slug, try with a suffix
+          attempt++;
+          const randomSuffix = Math.random().toString(36).substring(2, 8);
+          roomSlug = `${ParseData.data.name}-${randomSuffix}`;
+          console.log(`Room name taken, trying with suffix: ${roomSlug}`);
+        } else {
+          throw e; // Re-throw if it's a different error
+        }
+      }
+    }
+    
+    if (!room) {
+      console.log("Failed to create room after multiple attempts");
+      res.status(400).json({
+        message: "Unable to create room with a unique name. Please try a different name.",
+      });
+      return;
+    }
 
-    res.status(411).json({
+    console.log("Room created successfully:", room);
+    res.status(200).json({
       roomId: room.id,
+      slug: room.slug,
+      message: "Room created successfully"
     });
   } catch (e) {
-    res.json({
-      message: "Room alresdy exist",
+    console.error("Room creation error:", e);
+    res.status(400).json({
+      message: "Room creation failed. Please try again.",
     });
   }
 });

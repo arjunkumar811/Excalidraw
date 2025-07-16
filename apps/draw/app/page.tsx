@@ -25,22 +25,51 @@ function App() {
   }, []);
 
   const createRoom = async () => {
-    if (!roomName.trim()) return;
+    if (!roomName.trim()) {
+      alert("Please enter a room name");
+      return;
+    }
+    
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please sign in first to create a room");
+      router.push("/signin");
+      return;
+    }
     
     setIsCreating(true);
     try {
-      const token = localStorage.getItem("token");
+      console.log("Creating room with name:", roomName);
+      console.log("Using token:", token);
+      
       const response = await axios.post(
         `${HTTP_BACKEND}/room`, 
         { name: roomName },
-        { headers: { authorization: token } }
+        { 
+          headers: { 
+            authorization: token,
+            'Content-Type': 'application/json'
+          } 
+        }
       );
       
-      if (response.data.roomId) {
-        router.push(`/canvas/${roomName}`);
+      console.log("Room creation response:", response.data);
+      
+      if (response.data.roomId || response.data.slug) {
+        const roomSlug = response.data.slug || roomName;
+        console.log("Navigating to room:", roomSlug);
+        router.push(`/canvas/${roomSlug}`);
+      } else {
+        alert("Failed to create room: No room ID returned");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to create room:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Error response:", error.response.data);
+        alert(`Failed to create room: ${error.response.data.message || error.response.status}`);
+      } else {
+        alert("Failed to create room: Network error");
+      }
     } finally {
       setIsCreating(false);
     }
