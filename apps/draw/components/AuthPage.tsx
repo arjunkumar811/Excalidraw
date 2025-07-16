@@ -27,7 +27,12 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                 ? { email, password }
                 : { email, password, name };
 
+            console.log("Making request to:", `${HTTP_BACKEND}${endpoint}`);
+            console.log("Payload:", payload);
+
             const response = await axios.post(`${HTTP_BACKEND}${endpoint}`, payload);
+            
+            console.log("Response:", response.data);
             
             if (response.data.token) {
                 localStorage.setItem("token", response.data.token);
@@ -36,9 +41,23 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
                 router.push("/");
             }
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error 
-                ? error.message 
-                : (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "An error occurred";
+            console.error("Auth error:", error);
+            let errorMessage = "An error occurred";
+            
+            if (error instanceof Error) {
+                errorMessage = error.message;
+                // Check for network errors
+                if (error.message.includes('Network Error') || error.message.includes('ERR_CONNECTION_REFUSED')) {
+                    errorMessage = "Cannot connect to server. Please check if the backend is running on port 3002.";
+                }
+            } else {
+                // Handle axios errors
+                const axiosError = error as { response?: { data?: { message?: string } } };
+                if (axiosError?.response?.data?.message) {
+                    errorMessage = axiosError.response.data.message;
+                }
+            }
+            
             setError(errorMessage);
         } finally {
             setIsLoading(false);

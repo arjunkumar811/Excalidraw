@@ -16,6 +16,11 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", message: "Server is running" });
+});
+
 app.post("/signup", async function (req, res) {
   const ParseData = CreateUserSchema.safeParse(req.body);
   if (!ParseData.success) {
