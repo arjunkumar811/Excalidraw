@@ -1,4 +1,4 @@
-import { initDraw, setCurrentTool, setDarkMode } from "@/drawgame";
+import { initDraw, setCurrentTool, setDarkMode, undo, redo, clearCanvas } from "@/drawgame";
 import {
   Circle,
   Eraser,
@@ -72,8 +72,6 @@ export function Canvas({
   const [selectedTool, setSelectedTool] = useState<Tool>("select");
   const [userCount, setUserCount] = useState(1);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [history, setHistory] = useState<DrawingElement[]>([]);
-  const [historyStep, setHistoryStep] = useState(-1);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
 
@@ -85,9 +83,8 @@ export function Canvas({
         socket,
         selectedTool,
         {
-          onHistoryChange: (newHistory: DrawingElement[], step: number) => {
-            setHistory(newHistory);
-            setHistoryStep(step);
+          onHistoryChange: (_newHistory: DrawingElement[], _step: number) => {
+            // History is now managed in drawgame module
           },
         },
         isDarkMode
@@ -114,20 +111,36 @@ export function Canvas({
   }, [isDarkMode]);
 
   const handleUndo = () => {
-    if (historyStep > 0) {
-      setHistoryStep(historyStep - 1);
+    undo();
+    // Force canvas redraw
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        // The redraw will happen automatically through the undo function
+      }
     }
   };
 
   const handleRedo = () => {
-    if (historyStep < history.length - 1) {
-      setHistoryStep(historyStep + 1);
+    redo();
+    // Force canvas redraw
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        // The redraw will happen automatically through the redo function
+      }
     }
   };
 
   const handleClear = () => {
-    setHistory([]);
-    setHistoryStep(-1);
+    clearCanvas();
+    // Force canvas redraw
+    if (canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        // The redraw will happen automatically through the clearCanvas function
+      }
+    }
   };
 
   return (
