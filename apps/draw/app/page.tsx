@@ -8,21 +8,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { HTTP_BACKEND } from "@/config";
+import { useClientOnly } from "../hooks/useClientOnly";
 
 function App() {
   const [roomName, setRoomName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [user, setUser] = useState<{ name: string; token: string } | null>(null);
   const router = useRouter();
+  const isClient = useClientOnly();
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem("token");
-    const userName = localStorage.getItem("userName");
-    if (token && userName) {
-      setUser({ name: userName, token });
+    // Check if user is logged in (only on client side)
+    if (isClient && typeof window !== 'undefined') {
+      const token = localStorage.getItem("token");
+      const userName = localStorage.getItem("userName");
+      if (token && userName) {
+        setUser({ name: userName, token });
+      }
     }
-  }, []);
+  }, [isClient]);
 
   const createRoom = async () => {
     if (!roomName.trim()) {
@@ -94,30 +98,34 @@ function App() {
             </div>
             
             <div className="flex items-center gap-4">
-              {user ? (
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-slate-600">Welcome, {user.name}!</span>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      localStorage.clear();
-                      setUser(null);
-                    }}
-                  >
-                    Sign Out
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link href="/signin">
-                    <Button variant="ghost">Sign In</Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600">
-                      Sign Up
+              {isClient ? (
+                user ? (
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-slate-600">Welcome, {user.name}!</span>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        localStorage.clear();
+                        setUser(null);
+                      }}
+                    >
+                      Sign Out
                     </Button>
-                  </Link>
-                </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Link href="/signin">
+                      <Button variant="ghost">Sign In</Button>
+                    </Link>
+                    <Link href="/signup">
+                      <Button className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600">
+                        Sign Up
+                      </Button>
+                    </Link>
+                  </div>
+                )
+              ) : (
+                <div className="w-32 h-8 bg-slate-200 animate-pulse rounded"></div>
               )}
             </div>
           </div>
@@ -141,49 +149,55 @@ function App() {
 
             {/* Quick Actions */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              {user ? (
-                <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      placeholder="Enter room name..."
-                      value={roomName}
-                      onChange={(e) => setRoomName(e.target.value)}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                      onKeyPress={(e) => e.key === 'Enter' && createRoom()}
-                    />
-                  </div>
-                  <Button 
-                    onClick={createRoom}
-                    disabled={!roomName.trim() || isCreating}
-                    className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 px-6 py-3 h-auto"
-                  >
-                    {isCreating ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Plus className="w-5 h-5 mr-2" />
-                        Create Room
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Link href="/signin">
-                    <Button size="lg" className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 px-8 py-4 h-auto text-lg">
-                      Get Started
-                      <ArrowRight className="ml-2 w-5 h-5" />
+              {isClient ? (
+                user ? (
+                  <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        placeholder="Enter room name..."
+                        value={roomName}
+                        onChange={(e) => setRoomName(e.target.value)}
+                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                        onKeyPress={(e) => e.key === 'Enter' && createRoom()}
+                      />
+                    </div>
+                    <Button 
+                      onClick={createRoom}
+                      disabled={!roomName.trim() || isCreating}
+                      className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 px-6 py-3 h-auto"
+                    >
+                      {isCreating ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Plus className="w-5 h-5 mr-2" />
+                          Create Room
+                        </>
+                      )}
                     </Button>
-                  </Link>
-                  <Button 
-                    variant="outline" 
-                    size="lg" 
-                    onClick={joinRandomRoom}
-                    className="px-8 py-4 h-auto text-lg border-2"
-                  >
-                    Try Demo
-                  </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Link href="/signin">
+                      <Button size="lg" className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 px-8 py-4 h-auto text-lg">
+                        Get Started
+                        <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      onClick={joinRandomRoom}
+                      className="px-8 py-4 h-auto text-lg border-2"
+                    >
+                      Try Demo
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <div className="flex justify-center">
+                  <div className="w-64 h-12 bg-slate-200 animate-pulse rounded-xl"></div>
                 </div>
               )}
             </div>

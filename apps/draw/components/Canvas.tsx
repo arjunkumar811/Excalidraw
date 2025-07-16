@@ -13,13 +13,34 @@ import {
     Users,
     Settings,
     Home,
-    MessageCircle
+    MessageCircle,
+    Minus,
+    ArrowUpRight,
+    Type,
+    Diamond
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { IconButton } from "./IconButton";
 import Link from "next/link";
 
-type Shape = "Circle" | "Rectangle" | "Pencil" | "Square" | "Eraser" | "Undo" | "Redo" | "Trash" | "Save" | "Upload";
+type Tool = "select" | "rectangle" | "circle" | "diamond" | "arrow" | "line" | "pencil" | "text" | "image" | "eraser";
+
+type DrawingElement = {
+    type: "rectangle" | "circle" | "diamond" | "arrow" | "line" | "pencil" | "text" | "image";
+    id: string;
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+    radius?: number;
+    endX?: number;
+    endY?: number;
+    points?: { x: number; y: number }[];
+    text?: string;
+    strokeColor: string;
+    fillColor?: string;
+    strokeWidth: number;
+}
 
 export function Canvas({
     roomId,
@@ -29,23 +50,46 @@ export function Canvas({
     roomId: string;
 }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [selectedTool, setSelectedTool] = useState<Shape>("Pencil");
+    const [selectedTool, setSelectedTool] = useState<Tool>("select");
     const [userCount, setUserCount] = useState(1);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [history, setHistory] = useState<DrawingElement[]>([]);
+    const [historyStep, setHistoryStep] = useState(-1);
 
     useEffect(() => {
         if (canvasRef.current) {
-            initDraw(canvasRef.current, roomId, socket);
+            initDraw(canvasRef.current, roomId, socket, selectedTool, {
+                onHistoryChange: (newHistory: DrawingElement[], step: number) => {
+                    setHistory(newHistory);
+                    setHistoryStep(step);
+                }
+            });
         }
 
-        // Listen for user count updates
         socket.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
             if (data.type === 'userCount') {
                 setUserCount(data.count);
             }
         });
-    }, [canvasRef, roomId, socket]);
+    }, [canvasRef, roomId, socket, selectedTool]);
+
+    const handleUndo = () => {
+        if (historyStep > 0) {
+            setHistoryStep(historyStep - 1);
+        }
+    };
+
+    const handleRedo = () => {
+        if (historyStep < history.length - 1) {
+            setHistoryStep(historyStep + 1);
+        }
+    };
+
+    const handleClear = () => {
+        setHistory([]);
+        setHistoryStep(-1);
+    };
 
     return (
         <div className="relative h-screen w-screen overflow-hidden bg-white">
@@ -64,27 +108,63 @@ export function Canvas({
                         {/* Main drawing tools */}
                         <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
                             <IconButton 
-                                activated={selectedTool === "Pencil"} 
-                                icon={<Pencil size={18} />} 
-                                onClick={() => setSelectedTool("Pencil")}
-                                tooltip="Pencil" 
+                                activated={selectedTool === "select"} 
+                                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>} 
+                                onClick={() => setSelectedTool("select")}
+                                tooltip="Select" 
                             />
                             <IconButton 
-                                activated={selectedTool === "Square"} 
+                                activated={selectedTool === "rectangle"} 
                                 icon={<Square size={18} />} 
-                                onClick={() => setSelectedTool("Square")}
+                                onClick={() => setSelectedTool("rectangle")}
                                 tooltip="Rectangle" 
                             />
                             <IconButton 
-                                activated={selectedTool === "Circle"} 
+                                activated={selectedTool === "circle"} 
                                 icon={<Circle size={18} />} 
-                                onClick={() => setSelectedTool("Circle")}
+                                onClick={() => setSelectedTool("circle")}
                                 tooltip="Circle" 
                             />
                             <IconButton 
-                                activated={selectedTool === "Eraser"} 
+                                activated={selectedTool === "diamond"} 
+                                icon={<Diamond size={18} />} 
+                                onClick={() => setSelectedTool("diamond")}
+                                tooltip="Diamond" 
+                            />
+                            <IconButton 
+                                activated={selectedTool === "arrow"} 
+                                icon={<ArrowUpRight size={18} />} 
+                                onClick={() => setSelectedTool("arrow")}
+                                tooltip="Arrow" 
+                            />
+                            <IconButton 
+                                activated={selectedTool === "line"} 
+                                icon={<Minus size={18} />} 
+                                onClick={() => setSelectedTool("line")}
+                                tooltip="Line" 
+                            />
+                            <IconButton 
+                                activated={selectedTool === "pencil"} 
+                                icon={<Pencil size={18} />} 
+                                onClick={() => setSelectedTool("pencil")}
+                                tooltip="Pencil" 
+                            />
+                            <IconButton 
+                                activated={selectedTool === "text"} 
+                                icon={<Type size={18} />} 
+                                onClick={() => setSelectedTool("text")}
+                                tooltip="Text" 
+                            />
+                            <IconButton 
+                                activated={selectedTool === "image"} 
+                                icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>} 
+                                onClick={() => setSelectedTool("image")}
+                                tooltip="Image" 
+                            />
+                            <IconButton 
+                                activated={selectedTool === "eraser"} 
                                 icon={<Eraser size={18} />} 
-                                onClick={() => setSelectedTool("Eraser")}
+                                onClick={() => setSelectedTool("eraser")}
                                 tooltip="Eraser" 
                             />
                         </div>
@@ -94,19 +174,19 @@ export function Canvas({
                             <IconButton 
                                 activated={false} 
                                 icon={<Undo size={18} />} 
-                                onClick={() => setSelectedTool("Undo")}
+                                onClick={handleUndo}
                                 tooltip="Undo" 
                             />
                             <IconButton 
                                 activated={false} 
                                 icon={<Redo size={18} />} 
-                                onClick={() => setSelectedTool("Redo")}
+                                onClick={handleRedo}
                                 tooltip="Redo" 
                             />
                             <IconButton 
                                 activated={false} 
                                 icon={<Trash2 size={18} />} 
-                                onClick={() => setSelectedTool("Trash")}
+                                onClick={handleClear}
                                 tooltip="Clear All" 
                             />
                         </div>
@@ -188,7 +268,5 @@ export function Canvas({
                 )}
             </div>
         </div>
-    );
-}
     );
 }
