@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "@repo/backend-comman/config";
 import { middleware } from "./middleware.js";
@@ -55,6 +55,7 @@ app.post("/signup", async function (req, res) {
   }
 });
 
+// @ts-ignore
 app.post("/signin", async function (req, res) {
   const ParseData = SigninSchema.safeParse(req.body);
   if (!ParseData.success) {
@@ -89,6 +90,7 @@ app.post("/signin", async function (req, res) {
   });
 });
 
+// @ts-ignore
 app.post("/room", middleware, async function (req, res) {
   const ParseData = CreateRoomSchema.safeParse(req.body);
   if (!ParseData.success) {
@@ -98,8 +100,14 @@ app.post("/room", middleware, async function (req, res) {
     return;
   }
 
-  //@ts-ignore
   const userId = req.userId;
+  if (!userId) {
+    res.status(401).json({
+      message: "User not authenticated",
+    });
+    return;
+  }
+  
   try {
     const room = await prismaClient.room.create({
       data: {
