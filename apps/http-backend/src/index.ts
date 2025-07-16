@@ -14,7 +14,17 @@ const PORT = process.env.PORT || 3002;
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+// Configure CORS properly for development
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'], // Allow both possible frontend ports
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Handle preflight requests
+app.options('*', cors());
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -22,10 +32,15 @@ app.get("/health", (req, res) => {
 });
 
 app.post("/signup", async function (req, res) {
+  console.log("Signup request received:", req.body);
+  console.log("Headers:", req.headers);
+  
   const ParseData = CreateUserSchema.safeParse(req.body);
   if (!ParseData.success) {
+    console.log("Validation failed:", ParseData.error);
     res.status(400).json({
       message: "Incorrect inputs. Please check your form data.",
+      errors: ParseData.error.errors
     });
     return;
   }
@@ -62,10 +77,15 @@ app.post("/signup", async function (req, res) {
 
 // @ts-ignore
 app.post("/signin", async function (req, res) {
+  console.log("Signin request received:", req.body);
+  console.log("Headers:", req.headers);
+  
   const ParseData = SigninSchema.safeParse(req.body);
   if (!ParseData.success) {
-    res.json({
-      message: "Incorrect Input",
+    console.log("Validation failed:", ParseData.error);
+    res.status(400).json({
+      message: "Incorrect inputs. Please check your form data.",
+      errors: ParseData.error.errors
     });
     return;
   }
