@@ -164,7 +164,8 @@ wss.on("connection", (ws: WebSocket, request) => {
         });
       }
     }
-  });  ws.on("close", () => {
+  });
+  ws.on("close", () => {
     const userIndex = users.findIndex((x) => x.ws === ws);
     if (userIndex !== -1) {
       const user = users[userIndex];

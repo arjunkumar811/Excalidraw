@@ -51,7 +51,8 @@ app.post("/signup", async function (req, res) {
   } catch (error) {
     res.status(409).json({
       message: "User already exists with this email address",
-    });  }
+    });
+  }
 });
 
 app.post("/signin", async function (req, res) {
@@ -113,7 +114,8 @@ app.post("/room", middleware, async function (req, res) {
   } catch (e) {
     res.json({
       message: "Room alresdy exist",
-    });  }
+    });
+  }
 });
 
 app.get("/chats/:roomId", async function (req, res) {
@@ -137,7 +139,8 @@ app.get("/chats/:roomId", async function (req, res) {
     console.log(e);
     res.json({
       messages: [],
-    });  }
+    });
+  }
 });
 
 app.get("/room/:slug", async function (req, res) {
@@ -149,7 +152,8 @@ app.get("/room/:slug", async function (req, res) {
   });
 
   res.json({
-    room,  });
+    room,
+  });
 });
 
 app.listen(PORT, function () {
