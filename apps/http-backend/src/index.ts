@@ -16,15 +16,17 @@ const app = express();
 app.use(express.json());
 
 // Configure CORS properly for development
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'], // Allow both possible frontend ports
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://localhost:3001"], // Allow both possible frontend ports
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Handle preflight requests
-app.options('*', cors());
+app.options("*", cors());
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -34,13 +36,13 @@ app.get("/health", (req, res) => {
 app.post("/signup", async function (req, res) {
   console.log("Signup request received:", req.body);
   console.log("Headers:", req.headers);
-  
+
   const ParseData = CreateUserSchema.safeParse(req.body);
   if (!ParseData.success) {
     console.log("Validation failed:", ParseData.error);
     res.status(400).json({
       message: "Incorrect inputs. Please check your form data.",
-      errors: ParseData.error.errors
+      errors: ParseData.error.errors,
     });
     return;
   }
@@ -79,13 +81,13 @@ app.post("/signup", async function (req, res) {
 app.post("/signin", async function (req, res) {
   console.log("Signin request received:", req.body);
   console.log("Headers:", req.headers);
-  
+
   const ParseData = SigninSchema.safeParse(req.body);
   if (!ParseData.success) {
     console.log("Validation failed:", ParseData.error);
     res.status(400).json({
       message: "Incorrect inputs. Please check your form data.",
-      errors: ParseData.error.errors
+      errors: ParseData.error.errors,
     });
     return;
   }
@@ -119,13 +121,13 @@ app.post("/signin", async function (req, res) {
 app.post("/room", middleware, async function (req, res) {
   console.log("Room creation request received:", req.body);
   console.log("User ID from middleware:", req.userId);
-  
+
   const ParseData = CreateRoomSchema.safeParse(req.body);
   if (!ParseData.success) {
     console.log("Room validation failed:", ParseData.error);
     res.status(400).json({
       message: "Incorrect inputs",
-      errors: ParseData.error.errors
+      errors: ParseData.error.errors,
     });
     return;
   }
@@ -138,12 +140,12 @@ app.post("/room", middleware, async function (req, res) {
     });
     return;
   }
-  
+
   try {
     let roomSlug = ParseData.data.name;
     let attempt = 0;
     let room = null;
-    
+
     // Try to create room with original name, if it fails, append random suffix
     while (attempt < 5) {
       try {
@@ -156,7 +158,7 @@ app.post("/room", middleware, async function (req, res) {
         });
         break; // Success, exit the loop
       } catch (e: any) {
-        if (e.code === 'P2002' && e.meta?.target?.includes('slug')) {
+        if (e.code === "P2002" && e.meta?.target?.includes("slug")) {
           // Unique constraint violation on slug, try with a suffix
           attempt++;
           const randomSuffix = Math.random().toString(36).substring(2, 8);
@@ -167,11 +169,12 @@ app.post("/room", middleware, async function (req, res) {
         }
       }
     }
-    
+
     if (!room) {
       console.log("Failed to create room after multiple attempts");
       res.status(400).json({
-        message: "Unable to create room with a unique name. Please try a different name.",
+        message:
+          "Unable to create room with a unique name. Please try a different name.",
       });
       return;
     }
@@ -180,7 +183,7 @@ app.post("/room", middleware, async function (req, res) {
     res.status(200).json({
       roomId: room.id,
       slug: room.slug,
-      message: "Room created successfully"
+      message: "Room created successfully",
     });
   } catch (e) {
     console.error("Room creation error:", e);

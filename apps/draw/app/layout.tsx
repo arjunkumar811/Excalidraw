@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Excalidraw - Collaborative Whiteboarding",
-  description: "Create, collaborate, and share beautiful diagrams and sketches with our intuitive drawing tool.",
+  description:
+    "Create, collaborate, and share beautiful diagrams and sketches with our intuitive drawing tool.",
 };
 
 export default function RootLayout({

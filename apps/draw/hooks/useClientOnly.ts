@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 export function useClientOnly() {
   const [isClient, setIsClient] = useState(false);
@@ -10,19 +10,22 @@ export function useClientOnly() {
   return isClient;
 }
 
-export function useLocalStorage(key: string, defaultValue: string | null = null) {
+export function useLocalStorage(
+  key: string,
+  defaultValue: string | null = null
+) {
   const [value, setValue] = useState<string | null>(defaultValue);
   const isClient = useClientOnly();
 
   useEffect(() => {
-    if (isClient && typeof window !== 'undefined') {
+    if (isClient && typeof window !== "undefined") {
       const stored = localStorage.getItem(key);
       setValue(stored);
     }
   }, [key, isClient]);
 
   const setStoredValue = (newValue: string | null) => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       if (newValue === null) {
         localStorage.removeItem(key);
       } else {

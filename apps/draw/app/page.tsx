@@ -3,7 +3,16 @@
 import { useState, useEffect } from "react";
 import { Button } from "@repo/ui/button";
 import { Card } from "@repo/ui/card";
-import { Pencil, Share2, Users2, Github, Plus, ArrowRight, Palette, Zap } from "lucide-react";
+import {
+  Pencil,
+  Share2,
+  Users2,
+  Github,
+  Plus,
+  ArrowRight,
+  Palette,
+  Zap,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -13,13 +22,15 @@ import { useClientOnly } from "../hooks/useClientOnly";
 function App() {
   const [roomName, setRoomName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [user, setUser] = useState<{ name: string; token: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; token: string } | null>(
+    null
+  );
   const router = useRouter();
   const isClient = useClientOnly();
 
   useEffect(() => {
     // Check if user is logged in (only on client side)
-    if (isClient && typeof window !== 'undefined') {
+    if (isClient && typeof window !== "undefined") {
       const token = localStorage.getItem("token");
       const userName = localStorage.getItem("userName");
       if (token && userName) {
@@ -33,32 +44,32 @@ function App() {
       alert("Please enter a room name");
       return;
     }
-    
+
     const token = localStorage.getItem("token");
     if (!token) {
       alert("Please sign in first to create a room");
       router.push("/signin");
       return;
     }
-    
+
     setIsCreating(true);
     try {
       console.log("Creating room with name:", roomName);
       console.log("Using token:", token);
-      
+
       const response = await axios.post(
-        `${HTTP_BACKEND}/room`, 
+        `${HTTP_BACKEND}/room`,
         { name: roomName },
-        { 
-          headers: { 
+        {
+          headers: {
             authorization: token,
-            'Content-Type': 'application/json'
-          } 
+            "Content-Type": "application/json",
+          },
         }
       );
-      
+
       console.log("Room creation response:", response.data);
-      
+
       if (response.data.roomId || response.data.slug) {
         const roomSlug = response.data.slug || roomName;
         console.log("Navigating to room:", roomSlug);
@@ -70,7 +81,9 @@ function App() {
       console.error("Failed to create room:", error);
       if (axios.isAxiosError(error) && error.response) {
         console.error("Error response:", error.response.data);
-        alert(`Failed to create room: ${error.response.data.message || error.response.status}`);
+        alert(
+          `Failed to create room: ${error.response.data.message || error.response.status}`
+        );
       } else {
         alert("Failed to create room: Network error");
       }
@@ -94,16 +107,20 @@ function App() {
               <div className="w-8 h-8 bg-gradient-to-r from-violet-500 to-purple-500 rounded-lg flex items-center justify-center">
                 <Palette className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-slate-900">Excalidraw</span>
+              <span className="text-xl font-bold text-slate-900">
+                Excalidraw
+              </span>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {isClient ? (
                 user ? (
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-slate-600">Welcome, {user.name}!</span>
-                    <Button 
-                      variant="outline" 
+                    <span className="text-sm text-slate-600">
+                      Welcome, {user.name}!
+                    </span>
+                    <Button
+                      variant="outline"
                       onClick={() => {
                         localStorage.clear();
                         setUser(null);
@@ -143,8 +160,9 @@ function App() {
               </span>
             </h1>
             <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-              The ultimate collaborative whiteboarding experience. Create beautiful diagrams, 
-              sketches, and wireframes with your team in real-time.
+              The ultimate collaborative whiteboarding experience. Create
+              beautiful diagrams, sketches, and wireframes with your team in
+              real-time.
             </p>
 
             {/* Quick Actions */}
@@ -159,10 +177,10 @@ function App() {
                         value={roomName}
                         onChange={(e) => setRoomName(e.target.value)}
                         className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                        onKeyPress={(e) => e.key === 'Enter' && createRoom()}
+                        onKeyPress={(e) => e.key === "Enter" && createRoom()}
                       />
                     </div>
-                    <Button 
+                    <Button
                       onClick={createRoom}
                       disabled={!roomName.trim() || isCreating}
                       className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 px-6 py-3 h-auto"
@@ -180,14 +198,17 @@ function App() {
                 ) : (
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Link href="/signin">
-                      <Button size="lg" className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 px-8 py-4 h-auto text-lg">
+                      <Button
+                        size="lg"
+                        className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 px-8 py-4 h-auto text-lg"
+                      >
                         Get Started
                         <ArrowRight className="ml-2 w-5 h-5" />
                       </Button>
                     </Link>
-                    <Button 
-                      variant="outline" 
-                      size="lg" 
+                    <Button
+                      variant="outline"
+                      size="lg"
                       onClick={joinRandomRoom}
                       className="px-8 py-4 h-auto text-lg border-2"
                     >
@@ -205,8 +226,8 @@ function App() {
             {/* Quick demo access */}
             <div className="text-center">
               <p className="text-sm text-slate-500 mb-4">or</p>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 onClick={joinRandomRoom}
                 className="text-violet-600 hover:text-violet-700 hover:bg-violet-50"
               >
@@ -226,7 +247,8 @@ function App() {
               Everything you need to create
             </h2>
             <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-              Powerful tools designed for seamless collaboration and beautiful results
+              Powerful tools designed for seamless collaboration and beautiful
+              results
             </p>
           </div>
 
@@ -236,9 +258,12 @@ function App() {
                 <div className="w-16 h-16 bg-gradient-to-r from-violet-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                   <Share2 className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">Real-time Collaboration</h3>
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                  Real-time Collaboration
+                </h3>
                 <p className="text-slate-600">
-                  Work together with your team in real-time. See changes instantly as they happen.
+                  Work together with your team in real-time. See changes
+                  instantly as they happen.
                 </p>
               </div>
             </Card>
@@ -248,9 +273,12 @@ function App() {
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                   <Pencil className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">Intuitive Drawing</h3>
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                  Intuitive Drawing
+                </h3>
                 <p className="text-slate-600">
-                  Powerful drawing tools that feel natural. Create shapes, diagrams, and sketches effortlessly.
+                  Powerful drawing tools that feel natural. Create shapes,
+                  diagrams, and sketches effortlessly.
                 </p>
               </div>
             </Card>
@@ -260,9 +288,12 @@ function App() {
                 <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                   <Users2 className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-3">Team Spaces</h3>
+                <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                  Team Spaces
+                </h3>
                 <p className="text-slate-600">
-                  Create dedicated rooms for different projects. Invite team members with a simple link.
+                  Create dedicated rooms for different projects. Invite team
+                  members with a simple link.
                 </p>
               </div>
             </Card>
@@ -278,18 +309,23 @@ function App() {
               Ready to start creating?
             </h2>
             <p className="text-xl text-violet-100 mb-10">
-              Join thousands of teams already using Excalidraw for their creative projects.
+              Join thousands of teams already using Excalidraw for their
+              creative projects.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/signup">
-                <Button size="lg" variant="secondary" className="bg-white text-violet-600 hover:bg-gray-50 px-8 py-4 h-auto text-lg">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="bg-white text-violet-600 hover:bg-gray-50 px-8 py-4 h-auto text-lg"
+                >
                   Create Free Account
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
-              <Button 
-                variant="outline" 
-                size="lg" 
+              <Button
+                variant="outline"
+                size="lg"
                 onClick={joinRandomRoom}
                 className="border-2 border-white text-white hover:bg-white hover:text-violet-600 px-8 py-4 h-auto text-lg"
               >
@@ -310,11 +346,18 @@ function App() {
               </div>
               <span className="text-xl font-bold">Excalidraw</span>
             </div>
-            
+
             <div className="flex items-center gap-6 text-sm text-slate-400">
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
-              <a href="#" className="hover:text-white transition-colors flex items-center gap-2">
+              <a href="#" className="hover:text-white transition-colors">
+                Privacy
+              </a>
+              <a href="#" className="hover:text-white transition-colors">
+                Terms
+              </a>
+              <a
+                href="#"
+                className="hover:text-white transition-colors flex items-center gap-2"
+              >
                 <Github className="w-4 h-4" />
                 GitHub
               </a>
