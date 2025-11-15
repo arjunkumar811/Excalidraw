@@ -212,11 +212,34 @@ app.get("/chats/:roomId", async function (req, res) {
 
 app.get("/room/:slug", async function (req, res) {
   const slug = req.params.slug;
-  const room = await prismaClient.room.findFirst({
+  let room = await prismaClient.room.findFirst({
     where: {
       slug,
     },
   });
+
+  if (!room) {
+    let guestUser = await prismaClient.user.findUnique({
+      where: { email: 'guest@demo.com' }
+    });
+
+    if (!guestUser) {
+      guestUser = await prismaClient.user.create({
+        data: {
+          email: 'guest@demo.com',
+          password: 'guest',
+          name: 'Guest User'
+        }
+      });
+    }
+
+    room = await prismaClient.room.create({
+      data: {
+        slug: slug,
+        adminId: guestUser.id,
+      },
+    });
+  }
 
   res.json({
     room,
