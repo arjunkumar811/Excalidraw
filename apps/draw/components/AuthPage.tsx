@@ -55,7 +55,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
 
       if (error instanceof Error) {
         errorMessage = error.message;
-        // Check for network errors
+        
         if (
           error.message.includes("Network Error") ||
           error.message.includes("ERR_CONNECTION_REFUSED")
@@ -64,7 +64,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
             "Cannot connect to server. Please check if the backend is running on port 3002.";
         }
       } else {
-        // Handle axios errors
+        
         const axiosError = error as {
           response?: { data?: { message?: string } };
         };
@@ -82,7 +82,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
       <div className="w-full max-w-md">
-        {/* Logo/Brand */}
+        {}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-violet-500 to-purple-500 rounded-2xl mb-4 shadow-lg">
             <svg
@@ -107,10 +107,10 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
           </p>
         </div>
 
-        {/* Auth Card */}
+        {}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name field for signup */}
+            {}
             {!isSignin && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -130,7 +130,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
               </div>
             )}
 
-            {/* Email field */}
+            {}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Email Address
@@ -148,7 +148,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
               </div>
             </div>
 
-            {/* Password field */}
+            {}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Password
@@ -177,14 +177,14 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
               </div>
             </div>
 
-            {/* Error message */}
+            {}
             {error && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
                 {error}
               </div>
             )}
 
-            {/* Submit button */}
+            {}
             <button
               type="submit"
               disabled={isLoading}
@@ -201,7 +201,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
             </button>
           </form>
 
-          {/* Divider */}
+          {}
           <div className="flex items-center my-6">
             <div className="flex-1 border-t border-slate-300 dark:border-slate-600"></div>
             <span className="px-4 text-sm text-slate-500 dark:text-slate-400">
@@ -210,7 +210,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
             <div className="flex-1 border-t border-slate-300 dark:border-slate-600"></div>
           </div>
 
-          {/* Social login buttons */}
+          {}
           <div className="space-y-3">
             <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
               <Github className="w-5 h-5 text-slate-700 dark:text-slate-300" />
@@ -226,7 +226,7 @@ export function AuthPage({ isSignin }: { isSignin: boolean }) {
             </button>
           </div>
 
-          {/* Toggle auth mode */}
+          {}
           <div className="text-center mt-6">
             <p className="text-slate-600 dark:text-slate-400">
               {isSignin ? "Don't have an account?" : "Already have an account?"}{" "}

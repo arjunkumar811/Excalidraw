@@ -46,6 +46,14 @@ let isDarkModeGlobal: boolean = false;
 let history: DrawingElement[][] = [];
 let historyStep: number = -1;
 let selectedElement: DrawingElement | null = null;
+let selectedElementIndex: number = -1;
+let isDragging = false;
+let isResizing = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let resizeHandle: string | null = null;
+let dragStartX = 0;
+let dragStartY = 0;
 
 let historyCallbacks: {
   onHistoryChange: (history: DrawingElement[], step: number) => void;
@@ -54,6 +62,13 @@ let canvasRef: HTMLCanvasElement | null = null;
 let canvasCtx: CanvasRenderingContext2D | null = null;
 
 export function setCurrentTool(tool: Tool) {
+  selectedElement = null;
+  selectedElementIndex = -1;
+  isDragging = false;
+  isResizing = false;
+  if (canvasRef && canvasCtx) {
+    redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
+  }
   currentTool = tool;
 }
 
@@ -106,7 +121,6 @@ function getStrokeColor(): string {
 }
 
 function findElementAtPosition(x: number, y: number): DrawingElement | null {
-  // Check elements in reverse order (last drawn first)
   for (let i = elements.length - 1; i >= 0; i--) {
     const element = elements[i];
     if (isPointInElement(x, y, element)) {
@@ -132,7 +146,6 @@ function isPointInElement(x: number, y: number, element: DrawingElement): boolea
       break;
     case "diamond":
       if (element.width && element.height) {
-        // Simplified diamond hit detection
         return x >= element.x && x <= element.x + element.width &&
                y >= element.y && y <= element.y + element.height;
       }
@@ -140,14 +153,12 @@ function isPointInElement(x: number, y: number, element: DrawingElement): boolea
     case "line":
     case "arrow":
       if (element.endX !== undefined && element.endY !== undefined) {
-        // Line hit detection with tolerance
         const distance = distanceFromPointToLine(x, y, element.x, element.y, element.endX, element.endY);
-        return distance <= 5; // 5px tolerance
+        return distance <= 5;
       }
       break;
     case "pencil":
       if (element.points) {
-        // Check if point is near any of the pencil points
         for (const point of element.points) {
           const distance = Math.sqrt(Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2));
           if (distance <= 5) return true;
@@ -155,7 +166,6 @@ function isPointInElement(x: number, y: number, element: DrawingElement): boolea
       }
       break;
     case "text":
-      // Simple text hit detection
       return x >= element.x && x <= element.x + 100 &&
              y >= element.y - 20 && y <= element.y;
       break;
@@ -227,7 +237,7 @@ function drawSelectionBox(ctx: CanvasRenderingContext2D, element: DrawingElement
       }
       break;
     case "text":
-      width = 100; // Approximate text width
+      width = 100;
       height = 20;
       break;
     case "pencil":
@@ -243,7 +253,158 @@ function drawSelectionBox(ctx: CanvasRenderingContext2D, element: DrawingElement
   }
   
   ctx.strokeRect(x - 5, y - 5, width + 10, height + 10);
+  
+  const handleSize = 8;
+  ctx.fillStyle = "#007bff";
+  ctx.fillRect(x - 5 - handleSize / 2, y - 5 - handleSize / 2, handleSize, handleSize);
+  ctx.fillRect(x + width + 5 - handleSize / 2, y - 5 - handleSize / 2, handleSize, handleSize);
+  ctx.fillRect(x - 5 - handleSize / 2, y + height + 5 - handleSize / 2, handleSize, handleSize);
+  ctx.fillRect(x + width + 5 - handleSize / 2, y + height + 5 - handleSize / 2, handleSize, handleSize);
+  
   ctx.setLineDash([]);
+}
+
+function getResizeHandle(x: number, y: number, element: DrawingElement): string | null {
+  let boundsX = element.x;
+  let boundsY = element.y;
+  let boundsWidth = 0;
+  let boundsHeight = 0;
+
+  switch (element.type) {
+    case "rectangle":
+    case "diamond":
+      boundsWidth = element.width || 0;
+      boundsHeight = element.height || 0;
+      break;
+    case "circle":
+      if (element.radius) {
+        boundsX = element.x - element.radius;
+        boundsY = element.y - element.radius;
+        boundsWidth = element.radius * 2;
+        boundsHeight = element.radius * 2;
+      }
+      break;
+    case "line":
+    case "arrow":
+      if (element.endX !== undefined && element.endY !== undefined) {
+        boundsX = Math.min(element.x, element.endX);
+        boundsY = Math.min(element.y, element.endY);
+        boundsWidth = Math.abs(element.endX - element.x);
+        boundsHeight = Math.abs(element.endY - element.y);
+      }
+      break;
+    case "text":
+      boundsWidth = 100;
+      boundsHeight = 20;
+      break;
+    case "pencil":
+      if (element.points && element.points.length > 0) {
+        const xs = element.points.map(p => p.x);
+        const ys = element.points.map(p => p.y);
+        boundsX = Math.min(...xs);
+        boundsY = Math.min(...ys);
+        boundsWidth = Math.max(...xs) - boundsX;
+        boundsHeight = Math.max(...ys) - boundsY;
+      }
+      break;
+  }
+
+  const handleSize = 8;
+  const tolerance = 5;
+
+  if (Math.abs(x - (boundsX - 5)) < handleSize + tolerance && Math.abs(y - (boundsY - 5)) < handleSize + tolerance) {
+    return "top-left";
+  }
+  if (Math.abs(x - (boundsX + boundsWidth + 5)) < handleSize + tolerance && Math.abs(y - (boundsY - 5)) < handleSize + tolerance) {
+    return "top-right";
+  }
+  if (Math.abs(x - (boundsX - 5)) < handleSize + tolerance && Math.abs(y - (boundsY + boundsHeight + 5)) < handleSize + tolerance) {
+    return "bottom-left";
+  }
+  if (Math.abs(x - (boundsX + boundsWidth + 5)) < handleSize + tolerance && Math.abs(y - (boundsY + boundsHeight + 5)) < handleSize + tolerance) {
+    return "bottom-right";
+  }
+
+  return null;
+}
+
+function resizeElement(element: DrawingElement, handle: string, newX: number, newY: number, startX: number, startY: number) {
+  const dx = newX - startX;
+  const dy = newY - startY;
+
+  switch (element.type) {
+    case "rectangle":
+    case "diamond":
+      if (handle === "top-left") {
+        const newWidth = (element.width || 0) - dx;
+        const newHeight = (element.height || 0) - dy;
+        if (Math.abs(newWidth) > 5 && Math.abs(newHeight) > 5) {
+          element.x += dx;
+          element.y += dy;
+          element.width = newWidth;
+          element.height = newHeight;
+        }
+      } else if (handle === "top-right") {
+        const newWidth = (element.width || 0) + dx;
+        const newHeight = (element.height || 0) - dy;
+        if (Math.abs(newWidth) > 5 && Math.abs(newHeight) > 5) {
+          element.y += dy;
+          element.width = newWidth;
+          element.height = newHeight;
+        }
+      } else if (handle === "bottom-left") {
+        const newWidth = (element.width || 0) - dx;
+        const newHeight = (element.height || 0) + dy;
+        if (Math.abs(newWidth) > 5 && Math.abs(newHeight) > 5) {
+          element.x += dx;
+          element.width = newWidth;
+          element.height = newHeight;
+        }
+      } else if (handle === "bottom-right") {
+        const newWidth = (element.width || 0) + dx;
+        const newHeight = (element.height || 0) + dy;
+        if (Math.abs(newWidth) > 5 && Math.abs(newHeight) > 5) {
+          element.width = newWidth;
+          element.height = newHeight;
+        }
+      }
+      break;
+    case "circle":
+      if (element.radius) {
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const direction = (handle === "top-left" || handle === "bottom-left") ? -1 : 1;
+        element.radius = Math.max(5, (element.radius || 0) + direction * distance / 2);
+      }
+      break;
+    case "line":
+    case "arrow":
+      if (handle === "top-left") {
+        element.x += dx;
+        element.y += dy;
+      } else if (handle === "bottom-right") {
+        element.endX = (element.endX || element.x) + dx;
+        element.endY = (element.endY || element.y) + dy;
+      }
+      break;
+  }
+}
+
+function moveElement(element: DrawingElement, dx: number, dy: number) {
+  element.x += dx;
+  element.y += dy;
+
+  switch (element.type) {
+    case "line":
+    case "arrow":
+      if (element.endX !== undefined) element.endX += dx;
+      if (element.endY !== undefined) element.endY += dy;
+      break;
+    case "pencil":
+      if (element.points) {
+        element.points = element.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+      }
+      break;
+  }
 }
 
 export async function initDraw(
@@ -273,13 +434,37 @@ export async function initDraw(
       const element = JSON.parse(message.message);
       elements.push(element);
       redrawCanvas(canvas, ctx, isDarkMode);
+      if (selectedElement && selectedElementIndex !== -1) {
+        drawSelectionBox(ctx, elements[selectedElementIndex]);
+      }
       callbacks.onHistoryChange(elements, elements.length - 1);
     } else if (message.type === "elementRemoved") {
-      // Handle element removal from other clients
       const elementIndex = elements.findIndex(el => el.id === message.elementId);
       if (elementIndex > -1) {
+        if (selectedElementIndex === elementIndex) {
+          selectedElement = null;
+          selectedElementIndex = -1;
+        } else if (selectedElementIndex > elementIndex) {
+          selectedElementIndex--;
+        }
         elements.splice(elementIndex, 1);
         redrawCanvas(canvas, ctx, isDarkMode);
+        if (selectedElement && selectedElementIndex !== -1) {
+          drawSelectionBox(ctx, elements[selectedElementIndex]);
+        }
+        callbacks.onHistoryChange(elements, elements.length - 1);
+      }
+    } else if (message.type === "elementUpdated") {
+      const elementIndex = elements.findIndex(el => el.id === message.element.id);
+      if (elementIndex > -1) {
+        elements[elementIndex] = message.element;
+        if (selectedElementIndex === elementIndex) {
+          selectedElement = elements[elementIndex];
+        }
+        redrawCanvas(canvas, ctx, isDarkMode);
+        if (selectedElement && selectedElementIndex !== -1) {
+          drawSelectionBox(ctx, elements[selectedElementIndex]);
+        }
         callbacks.onHistoryChange(elements, elements.length - 1);
       }
     }
@@ -291,8 +476,40 @@ export async function initDraw(
     startY = e.clientY - rect.top;
 
     if (currentTool === "select") {
-      // Find element at click position
-      selectedElement = findElementAtPosition(startX, startY);
+      let clickedOnSelected = false;
+      
+      if (selectedElement && selectedElementIndex !== -1) {
+        const handle = getResizeHandle(startX, startY, selectedElement);
+        if (handle) {
+          isResizing = true;
+          resizeHandle = handle;
+          dragStartX = startX;
+          dragStartY = startY;
+          return;
+        }
+        
+        if (isPointInElement(startX, startY, selectedElement)) {
+          isDragging = true;
+          dragOffsetX = startX - selectedElement.x;
+          dragOffsetY = startY - selectedElement.y;
+          clickedOnSelected = true;
+          return;
+        }
+      }
+      
+      if (!clickedOnSelected) {
+        selectedElement = null;
+        selectedElementIndex = -1;
+        
+        for (let i = elements.length - 1; i >= 0; i--) {
+          if (isPointInElement(startX, startY, elements[i])) {
+            selectedElement = elements[i];
+            selectedElementIndex = i;
+            break;
+          }
+        }
+      }
+      
       redrawCanvas(canvas, ctx, isDarkModeGlobal);
       if (selectedElement) {
         drawSelectionBox(ctx, selectedElement);
@@ -433,11 +650,34 @@ export async function initDraw(
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!isDrawing || !currentElement) return;
-
     const rect = canvas.getBoundingClientRect();
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
+
+    if (currentTool === "select") {
+      if (isResizing && selectedElement && resizeHandle && selectedElementIndex !== -1) {
+        resizeElement(elements[selectedElementIndex], resizeHandle, currentX, currentY, dragStartX, dragStartY);
+        dragStartX = currentX;
+        dragStartY = currentY;
+        redrawCanvas(canvas, ctx, isDarkModeGlobal);
+        drawSelectionBox(ctx, elements[selectedElementIndex]);
+        return;
+      }
+
+      if (isDragging && selectedElement && selectedElementIndex !== -1) {
+        const newX = currentX - dragOffsetX;
+        const newY = currentY - dragOffsetY;
+        const dx = newX - elements[selectedElementIndex].x;
+        const dy = newY - elements[selectedElementIndex].y;
+        moveElement(elements[selectedElementIndex], dx, dy);
+        redrawCanvas(canvas, ctx, isDarkModeGlobal);
+        drawSelectionBox(ctx, elements[selectedElementIndex]);
+        return;
+      }
+      return;
+    }
+
+    if (!isDrawing || !currentElement) return;
 
     switch (currentTool) {
       case "pencil":
@@ -467,12 +707,29 @@ export async function initDraw(
   };
 
   const handleMouseUp = () => {
+    if (currentTool === "select") {
+      if ((isDragging || isResizing) && selectedElement && selectedElementIndex !== -1) {
+        socket.send(
+          JSON.stringify({
+            type: "elementUpdated",
+            element: elements[selectedElementIndex],
+            roomId,
+          })
+        );
+        
+        callbacks.onHistoryChange(elements, elements.length - 1);
+      }
+      isDragging = false;
+      isResizing = false;
+      resizeHandle = null;
+      return;
+    }
+
     if (!isDrawing || !currentElement) return;
 
     isDrawing = false;
     elements.push(currentElement);
 
-    // Redraw canvas with the completed element
     redrawCanvas(canvas, ctx, isDarkModeGlobal);
 
     socket.send(
@@ -616,19 +873,10 @@ function redrawCanvasWithPreview(
 
 async function getExistingElements(roomId: string): Promise<DrawingElement[]> {
   try {
-    const res = await axios.get(`${HTTP_BACKEND}/chats/${roomId}`);
-    const messages = res.data.messages;
-
-    return messages
-      .filter((msg: { message: string }) => {
-        try {
-          const parsed = JSON.parse(msg.message);
-          return parsed.type && parsed.id;
-        } catch {
-          return false;
-        }
-      })
-      .map((msg: { message: string }) => JSON.parse(msg.message));
+    const res = await axios.get(`${HTTP_BACKEND}/drawings/${roomId}`);
+    const drawings = res.data.drawings || [];
+    console.log(`Loaded ${drawings.length} existing drawings for room ${roomId}`);
+    return drawings;
   } catch (error) {
     console.error("Failed to load existing elements:", error);
     return [];

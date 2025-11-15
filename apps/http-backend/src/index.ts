@@ -15,20 +15,17 @@ const PORT = process.env.PORT || 3002;
 const app = express();
 app.use(express.json());
 
-// Configure CORS properly for development
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"], // Allow both possible frontend ports
+    origin: ["http://localhost:3000", "http://localhost:3001"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Handle preflight requests
 app.options("*", cors());
 
-// Health check endpoint
 app.get("/health", (req, res) => {
   res.json({ status: "OK", message: "Server is running" });
 });
@@ -56,7 +53,6 @@ app.post("/signup", async function (req, res) {
       },
     });
 
-    // Generate token just like in signin
     const token = jwt.sign(
       {
         userId: user.id,
@@ -77,8 +73,7 @@ app.post("/signup", async function (req, res) {
   }
 });
 
-// @ts-ignore
-app.post("/signin", async function (req, res) {
+app.post("/signin", async function (req: any, res: any) {
   console.log("Signin request received:", req.body);
   console.log("Headers:", req.headers);
 
@@ -117,7 +112,6 @@ app.post("/signin", async function (req, res) {
   });
 });
 
-// @ts-ignore
 app.post("/room", middleware, async function (req, res) {
   console.log("Room creation request received:", req.body);
   console.log("User ID from middleware:", req.userId);
@@ -146,7 +140,6 @@ app.post("/room", middleware, async function (req, res) {
     let attempt = 0;
     let room = null;
 
-    // Try to create room with original name, if it fails, append random suffix
     while (attempt < 5) {
       try {
         console.log("Attempting to create room with slug:", roomSlug);
@@ -156,16 +149,15 @@ app.post("/room", middleware, async function (req, res) {
             adminId: userId,
           },
         });
-        break; // Success, exit the loop
+        break;
       } catch (e: any) {
         if (e.code === "P2002" && e.meta?.target?.includes("slug")) {
-          // Unique constraint violation on slug, try with a suffix
           attempt++;
           const randomSuffix = Math.random().toString(36).substring(2, 8);
           roomSlug = `${ParseData.data.name}-${randomSuffix}`;
           console.log(`Room name taken, trying with suffix: ${roomSlug}`);
         } else {
-          throw e; // Re-throw if it's a different error
+          throw e;
         }
       }
     }
@@ -229,6 +221,103 @@ app.get("/room/:slug", async function (req, res) {
   res.json({
     room,
   });
+});
+
+app.get("/drawings/:roomId", async function (req, res) {
+  try {
+    const roomId = Number(req.params.roomId);
+    
+    if (isNaN(roomId)) {
+      res.status(400).json({
+        message: "Invalid room ID",
+        drawings: [],
+      });
+      return;
+    }
+
+    const drawings = await prismaClient.drawing.findMany({
+      where: {
+        roomId: roomId,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
+    const elements = drawings.map(drawing => JSON.parse(drawing.elementData));
+
+    res.json({
+      drawings: elements,
+    });
+  } catch (e) {
+    console.log(e);
+    res.status(500).json({
+      message: "Failed to fetch drawings",
+      drawings: [],
+    });
+  }
+});
+
+app.post("/drawings", async function (req, res) {
+  try {
+    const { roomId, elementData, elementId, userId } = req.body;
+
+    if (!roomId || !elementData || !elementId) {
+      res.status(400).json({
+        message: "Missing required fields",
+      });
+      return;
+    }
+
+    const drawing = await prismaClient.drawing.create({
+      data: {
+        roomId: Number(roomId),
+        elementId: elementId,
+        elementData: JSON.stringify(elementData),
+        userId: userId || "guest",
+      },
+    });
+
+    res.json({
+      message: "Drawing saved successfully",
+      id: drawing.id,
+    });
+  } catch (e) {
+    console.error("Failed to save drawing:", e);
+    res.status(500).json({
+      message: "Failed to save drawing",
+    });
+  }
+});
+
+app.delete("/drawings/:elementId", async function (req, res) {
+  try {
+    const { elementId } = req.params;
+    const { roomId } = req.body;
+
+    if (!roomId) {
+      res.status(400).json({
+        message: "Room ID is required",
+      });
+      return;
+    }
+
+    await prismaClient.drawing.deleteMany({
+      where: {
+        elementId: elementId,
+        roomId: Number(roomId),
+      },
+    });
+
+    res.json({
+      message: "Drawing deleted successfully",
+    });
+  } catch (e) {
+    console.error("Failed to delete drawing:", e);
+    res.status(500).json({
+      message: "Failed to delete drawing",
+    });
+  }
 });
 
 app.listen(PORT, function () {

@@ -29,7 +29,7 @@ function App() {
   const isClient = useClientOnly();
 
   useEffect(() => {
-    // Check if user is logged in (only on client side)
+    
     if (isClient && typeof window !== "undefined") {
       const token = localStorage.getItem("token");
       const userName = localStorage.getItem("userName");
@@ -99,7 +99,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      {/* Navigation */}
+      {}
       <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -149,7 +149,7 @@ function App() {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {}
       <section className="relative overflow-hidden py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
@@ -165,7 +165,7 @@ function App() {
               real-time.
             </p>
 
-            {/* Quick Actions */}
+            {}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
               {isClient ? (
                 user ? (
@@ -223,7 +223,7 @@ function App() {
               )}
             </div>
 
-            {/* Quick demo access */}
+            {}
             <div className="text-center">
               <p className="text-sm text-slate-500 mb-4">or</p>
               <Button
@@ -239,7 +239,7 @@ function App() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -301,7 +301,7 @@ function App() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {}
       <section className="py-20 bg-gradient-to-r from-violet-500 to-purple-500">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto">
@@ -336,7 +336,7 @@ function App() {
         </div>
       </section>
 
-      {/* Footer */}
+      {}
       <footer className="bg-slate-900 text-white py-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">

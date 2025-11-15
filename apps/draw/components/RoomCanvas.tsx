@@ -1,44 +1,54 @@
 "use client";
 
-import { WS_URL } from "@/config";
+import { WS_URL, HTTP_BACKEND } from "@/config";
 import { useEffect, useState } from "react";
 import { Canvas } from "./Canvas";
 import { Loader2, AlertCircle } from "lucide-react";
+import axios from "axios";
 
 export function RoomCanvas({ roomId }: { roomId: string }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [numericRoomId, setNumericRoomId] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     "connecting" | "connected" | "error"
   >("connecting");
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
-    const token =
-      localStorage.getItem("token") ||
-      "guest_" + Math.random().toString(36).substring(7);
-
-    const connectWebSocket = () => {
+    const fetchRoomAndConnect = async () => {
       try {
+        const response = await axios.get(`${HTTP_BACKEND}/room/${roomId}`);
+        const room = response.data.room;
+        
+        if (!room) {
+          setConnectionStatus("error");
+          setErrorMessage("Room not found");
+          return;
+        }
+
+        setNumericRoomId(room.id);
+
+        const token =
+          localStorage.getItem("token") ||
+          "guest_" + Math.random().toString(36).substring(7);
+
         const ws = new WebSocket(`${WS_URL}?token=${token}`);
 
         ws.onopen = () => {
-          console.log("WebSocket connected");
           setConnectionStatus("connected");
           setSocket(ws);
           ws.send(
             JSON.stringify({
               type: "join_room",
-              roomId: roomId,
+              roomId: room.id.toString(),
             })
           );
         };
 
         ws.onclose = () => {
-          console.log("WebSocket disconnected");
           setConnectionStatus("connecting");
           setSocket(null);
-          // Attempt to reconnect after 3 seconds
-          setTimeout(connectWebSocket, 3000);
+          setTimeout(fetchRoomAndConnect, 3000);
         };
 
         ws.onerror = (error) => {
@@ -47,22 +57,20 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
           setErrorMessage("Failed to connect to the collaboration server");
         };
       } catch (error) {
-        console.error("Failed to create WebSocket:", error);
+        console.error("Failed to fetch room:", error);
         setConnectionStatus("error");
         setErrorMessage("Unable to establish connection");
       }
     };
 
-    connectWebSocket();
+    fetchRoomAndConnect();
 
-    // Cleanup function
     return () => {
       if (socket) {
         socket.close();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]); // socket is managed within the effect, so we don't include it in dependencies
+  }, [roomId]);
 
   if (connectionStatus === "error") {
     return (
@@ -84,7 +92,7 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
     );
   }
 
-  if (!socket || connectionStatus === "connecting") {
+  if (!socket || connectionStatus === "connecting" || !numericRoomId) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
@@ -95,11 +103,11 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
           <p className="text-gray-600">
             Setting up your collaborative workspace...
           </p>
-          <div className="mt-4 text-sm text-gray-500">Room ID: {roomId}</div>
+          <div className="mt-4 text-sm text-gray-500">Room: {roomId}</div>
         </div>
       </div>
     );
   }
 
-  return <Canvas roomId={roomId} socket={socket} />;
+  return <Canvas roomId={numericRoomId.toString()} socket={socket} />;
 }

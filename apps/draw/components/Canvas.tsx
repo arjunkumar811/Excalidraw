@@ -60,7 +60,7 @@ export function Canvas({
         selectedTool,
         {
           onHistoryChange: () => {
-            // History is now managed in drawgame module
+            
           },
         },
         isDarkMode
@@ -88,33 +88,33 @@ export function Canvas({
 
   const handleUndo = () => {
     undo();
-    // Force canvas redraw
+    
     if (canvasRef.current) {
       const ctx = canvasRef.current.getContext("2d");
       if (ctx) {
-        // The redraw will happen automatically through the undo function
+        
       }
     }
   };
 
   const handleRedo = () => {
     redo();
-    // Force canvas redraw
+    
     if (canvasRef.current) {
       const ctx = canvasRef.current.getContext("2d");
       if (ctx) {
-        // The redraw will happen automatically through the redo function
+        
       }
     }
   };
 
   const handleClear = () => {
     clearCanvas();
-    // Force canvas redraw
+    
     if (canvasRef.current) {
       const ctx = canvasRef.current.getContext("2d");
       if (ctx) {
-        // The redraw will happen automatically through the clearCanvas function
+        
       }
     }
   };
@@ -134,11 +134,11 @@ export function Canvas({
         }}
       />
 
-      {/* Top Toolbar */}
+      {}
       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-10">
         <div className="bg-white/95 backdrop-blur-lg border border-gray-200 rounded-2xl shadow-lg px-4 py-3">
           <div className="flex items-center gap-2">
-            {/* Main drawing tools */}
+            {}
             <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
               <IconButton
                 activated={selectedTool === "select"}
@@ -207,7 +207,7 @@ export function Canvas({
               />
             </div>
 
-            {/* Action tools */}
+            {}
             <div className="flex items-center gap-1 pr-2 border-r border-gray-200">
               <IconButton
                 activated={false}
@@ -229,7 +229,7 @@ export function Canvas({
               />
             </div>
 
-            {/* File operations */}
+            {}
             <div className="flex items-center gap-1">
               <IconButton
                 activated={false}
@@ -248,7 +248,7 @@ export function Canvas({
         </div>
       </div>
 
-      {/* Top Right - User count and room info */}
+      {}
       <div className="fixed top-4 right-4 z-10">
         <div className="bg-white/95 backdrop-blur-lg border border-gray-200 rounded-2xl shadow-lg px-4 py-3">
           <div className="flex items-center gap-3">
@@ -278,7 +278,7 @@ export function Canvas({
         </div>
       </div>
 
-      {/* Top Left - Home button */}
+      {}
       <div className="fixed top-4 left-4 z-10">
         <Link href="/">
           <div className="bg-white/95 backdrop-blur-lg border border-gray-200 rounded-2xl shadow-lg p-3 hover:bg-gray-50 transition-all">
@@ -287,7 +287,7 @@ export function Canvas({
         </Link>
       </div>
 
-      {/* Bottom Right - Settings */}
+      {}
       <div className="fixed bottom-4 right-4 z-10">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}

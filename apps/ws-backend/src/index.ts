@@ -14,9 +14,8 @@ interface Users {
 const users: Users[] = [];
 
 function CheckUser(token: string): string | null {
-  // Handle guest tokens
   if (token.startsWith("guest_")) {
-    return token; // Use the guest ID as the userId
+    return token;
   }
 
   try {
@@ -85,12 +84,10 @@ wss.on("connection", (ws: WebSocket, request) => {
       if (user) {
         user.rooms.push(ParseData.roomId);
 
-        // Notify all users in the room about the new user
         const usersInRoom = users.filter((u) =>
           u.rooms.includes(ParseData.roomId)
         );
 
-        // Send the user count to all users in the room
         usersInRoom.forEach((u) => {
           u.ws.send(
             JSON.stringify({
@@ -108,10 +105,8 @@ wss.on("connection", (ws: WebSocket, request) => {
         const roomId = ParseData.roomId || ParseData.room;
         user.rooms = user.rooms.filter((x) => x !== roomId);
 
-        // Notify remaining users in the room
         const usersInRoom = users.filter((u) => u.rooms.includes(roomId));
 
-        // Send the updated user count
         usersInRoom.forEach((u) => {
           u.ws.send(
             JSON.stringify({
@@ -133,7 +128,6 @@ wss.on("connection", (ws: WebSocket, request) => {
 
       const user = users.find((x) => x.ws === ws);
       if (user) {
-        // Only save to database if it's a registered user (not a guest)
         if (!user.userId.startsWith("guest_")) {
           try {
             await prismaClient.chat.create({
@@ -145,17 +139,140 @@ wss.on("connection", (ws: WebSocket, request) => {
             });
           } catch (error) {
             console.error("Failed to save chat message to database:", error);
-            // Continue even if database save fails
           }
         }
 
-        // Broadcast the message to all users in the room
         users.forEach((u) => {
-          if (u.rooms.includes(roomId)) {
+          if (u.rooms.includes(roomId.toString())) {
             u.ws.send(
               JSON.stringify({
                 type: "chat",
                 message: message,
+                roomId,
+                userId: user.userId,
+              })
+            );
+          }
+        });
+      }
+    }
+
+    if (ParseData.type === "drawing") {
+      const { roomId, message } = ParseData;
+
+      if (!roomId) {
+        ws.send(JSON.stringify({ message: "Invalid drawing payload - missing roomId" }));
+        return;
+      }
+
+      const user = users.find((x) => x.ws === ws);
+      if (user) {
+        try {
+          const element = JSON.parse(message);
+          
+          if (!user.userId.startsWith("guest_")) {
+            try {
+              await prismaClient.drawing.create({
+                data: {
+                  roomId: Number(roomId),
+                  elementId: element.id,
+                  elementData: message,
+                  userId: user.userId,
+                },
+              });
+            } catch (error) {
+              console.error("Failed to save drawing to database:", error);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse drawing element:", e);
+        }
+
+        users.forEach((u) => {
+          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+            u.ws.send(
+              JSON.stringify({
+                type: "drawing",
+                message: message,
+                roomId,
+                userId: user.userId,
+              })
+            );
+          }
+        });
+      }
+    }
+
+    if (ParseData.type === "elementRemoved") {
+      const { roomId, elementId } = ParseData;
+
+      if (!roomId || !elementId) {
+        ws.send(JSON.stringify({ message: "Invalid elementRemoved payload" }));
+        return;
+      }
+
+      const user = users.find((x) => x.ws === ws);
+      if (user) {
+        if (!user.userId.startsWith("guest_")) {
+          try {
+            await prismaClient.drawing.deleteMany({
+              where: {
+                elementId: elementId,
+                roomId: Number(roomId),
+              },
+            });
+          } catch (error) {
+            console.error("Failed to delete drawing from database:", error);
+          }
+        }
+
+        users.forEach((u) => {
+          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+            u.ws.send(
+              JSON.stringify({
+                type: "elementRemoved",
+                elementId: elementId,
+                roomId,
+                userId: user.userId,
+              })
+            );
+          }
+        });
+      }
+    }
+
+    if (ParseData.type === "elementUpdated") {
+      const { roomId, element } = ParseData;
+
+      if (!roomId || !element) {
+        ws.send(JSON.stringify({ message: "Invalid elementUpdated payload" }));
+        return;
+      }
+
+      const user = users.find((x) => x.ws === ws);
+      if (user) {
+        if (!user.userId.startsWith("guest_")) {
+          try {
+            await prismaClient.drawing.updateMany({
+              where: {
+                elementId: element.id,
+                roomId: Number(roomId),
+              },
+              data: {
+                elementData: JSON.stringify(element),
+              },
+            });
+          } catch (error) {
+            console.error("Failed to update drawing in database:", error);
+          }
+        }
+
+        users.forEach((u) => {
+          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+            u.ws.send(
+              JSON.stringify({
+                type: "elementUpdated",
+                element: element,
                 roomId,
                 userId: user.userId,
               })
@@ -169,17 +286,13 @@ wss.on("connection", (ws: WebSocket, request) => {
     const userIndex = users.findIndex((x) => x.ws === ws);
     if (userIndex !== -1) {
       const user = users[userIndex];
-      // Get all rooms the user was in before removing them
       const userRooms = user ? [...user.rooms] : [];
 
-      // Remove the user from the users array
       users.splice(userIndex, 1);
 
-      // Notify other users in each room that this user was in
       userRooms.forEach((roomId) => {
         const usersInRoom = users.filter((u) => u.rooms.includes(roomId));
 
-        // Update user count for each room
         usersInRoom.forEach((u) => {
           u.ws.send(
             JSON.stringify({
