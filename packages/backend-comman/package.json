@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/index.js",
   "exports": {
-    "./config": "./dist/index.js"
+    "./config": "./dist/config.js"
   },
   "scripts": {
     "build": "tsc -b",

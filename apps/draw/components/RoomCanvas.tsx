@@ -61,6 +61,7 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
         socket.close();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]); // socket is managed within the effect, so we don't include it in dependencies
 
   if (connectionStatus === "error") {

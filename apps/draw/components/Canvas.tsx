@@ -37,30 +37,6 @@ type Tool =
   | "text"
   | "eraser";
 
-type DrawingElement = {
-  type:
-    | "rectangle"
-    | "circle"
-    | "diamond"
-    | "arrow"
-    | "line"
-    | "pencil"
-    | "text";
-  id: string;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  radius?: number;
-  endX?: number;
-  endY?: number;
-  points?: { x: number; y: number }[];
-  text?: string;
-  strokeColor: string;
-  fillColor?: string;
-  strokeWidth: number;
-};
-
 export function Canvas({
   roomId,
   socket,
@@ -83,7 +59,7 @@ export function Canvas({
         socket,
         selectedTool,
         {
-          onHistoryChange: (_newHistory: DrawingElement[], _step: number) => {
+          onHistoryChange: () => {
             // History is now managed in drawgame module
           },
         },
