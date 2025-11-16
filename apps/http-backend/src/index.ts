@@ -239,32 +239,27 @@ app.get("/room/:slug", async function (req, res) {
   });
 
   if (!room) {
-<<<<<<< HEAD
     try {
-      const guestUser = await prismaClient.user.findFirst({
+      let guestUser = await prismaClient.user.findFirst({
         where: {
           email: "guest@excalidraw.local",
         },
       });
 
-      let adminId: string;
-      if (guestUser) {
-        adminId = guestUser.id;
-      } else {
-        const newGuestUser = await prismaClient.user.create({
+      if (!guestUser) {
+        guestUser = await prismaClient.user.create({
           data: {
             email: "guest@excalidraw.local",
             password: "guest_password_not_used",
-            name: "Guest",
+            name: "Guest User",
           },
         });
-        adminId = newGuestUser.id;
       }
 
       room = await prismaClient.room.create({
         data: {
           slug,
-          adminId,
+          adminId: guestUser.id,
         },
       });
       console.log(`Auto-created room for slug: ${slug}`);
@@ -276,28 +271,6 @@ app.get("/room/:slug", async function (req, res) {
       });
       return;
     }
-=======
-    let guestUser = await prismaClient.user.findUnique({
-      where: { email: 'guest@demo.com' }
-    });
-
-    if (!guestUser) {
-      guestUser = await prismaClient.user.create({
-        data: {
-          email: 'guest@demo.com',
-          password: 'guest',
-          name: 'Guest User'
-        }
-      });
-    }
-
-    room = await prismaClient.room.create({
-      data: {
-        slug: slug,
-        adminId: guestUser.id,
-      },
-    });
->>>>>>> ff680d6769fcd67d458f1e67330e645acc84dba0
   }
 
   res.json({
