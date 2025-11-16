@@ -92,9 +92,54 @@ function App() {
     }
   };
 
-  const joinRandomRoom = () => {
-    const randomId = Math.random().toString(36).substring(2, 8);
-    router.push(`/canvas/${randomId}`);
+  const joinRandomRoom = async () => {
+    const randomId = `demo-${Math.random().toString(36).substring(2, 8)}`;
+    
+    setIsCreating(true);
+    try {
+      let token = localStorage.getItem("token");
+      
+      if (!token) {
+        const guestToken = `guest_${Math.random().toString(36).substring(7)}`;
+        localStorage.setItem("token", guestToken);
+        token = guestToken;
+      }
+
+      console.log("Creating demo room with name:", randomId);
+      
+      const response = await axios.post(
+        `${HTTP_BACKEND}/room`,
+        { name: randomId },
+        {
+          headers: {
+            authorization: token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("Demo room creation response:", response.data);
+
+      if (response.data.roomId || response.data.slug) {
+        const roomSlug = response.data.slug || randomId;
+        console.log("Navigating to demo room:", roomSlug);
+        router.push(`/canvas/${roomSlug}`);
+      } else {
+        alert("Failed to create demo room: No room ID returned");
+      }
+    } catch (error: unknown) {
+      console.error("Failed to create demo room:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        console.error("Error response:", error.response.data);
+        alert(
+          `Failed to create demo room: ${error.response.data.message || error.response.status}`
+        );
+      } else {
+        alert("Failed to create demo room: Network error");
+      }
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (

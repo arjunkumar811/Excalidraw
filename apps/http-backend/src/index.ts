@@ -126,7 +126,7 @@ app.post("/room", middleware, async function (req, res) {
     return;
   }
 
-  const userId = req.userId;
+  let userId = req.userId;
   if (!userId) {
     console.log("No user ID found");
     res.status(401).json({
@@ -136,6 +136,26 @@ app.post("/room", middleware, async function (req, res) {
   }
 
   try {
+    if (userId.startsWith("guest_")) {
+      let guestUser = await prismaClient.user.findFirst({
+        where: {
+          email: `${userId}@guest.local`,
+        },
+      });
+
+      if (!guestUser) {
+        guestUser = await prismaClient.user.create({
+          data: {
+            email: `${userId}@guest.local`,
+            password: "guest_password_not_used",
+            name: "Guest User",
+          },
+        });
+        console.log("Created guest user:", guestUser.id);
+      }
+      userId = guestUser.id;
+    }
+
     let roomSlug = ParseData.data.name;
     let attempt = 0;
     let room = null;
@@ -212,11 +232,50 @@ app.get("/chats/:roomId", async function (req, res) {
 
 app.get("/room/:slug", async function (req, res) {
   const slug = req.params.slug;
-  const room = await prismaClient.room.findFirst({
+  let room = await prismaClient.room.findFirst({
     where: {
       slug,
     },
   });
+
+  if (!room) {
+    try {
+      const guestUser = await prismaClient.user.findFirst({
+        where: {
+          email: "guest@excalidraw.local",
+        },
+      });
+
+      let adminId: string;
+      if (guestUser) {
+        adminId = guestUser.id;
+      } else {
+        const newGuestUser = await prismaClient.user.create({
+          data: {
+            email: "guest@excalidraw.local",
+            password: "guest_password_not_used",
+            name: "Guest",
+          },
+        });
+        adminId = newGuestUser.id;
+      }
+
+      room = await prismaClient.room.create({
+        data: {
+          slug,
+          adminId,
+        },
+      });
+      console.log(`Auto-created room for slug: ${slug}`);
+    } catch (error) {
+      console.error("Failed to auto-create room:", error);
+      res.status(500).json({
+        room: null,
+        error: "Failed to create room",
+      });
+      return;
+    }
+  }
 
   res.json({
     room,
