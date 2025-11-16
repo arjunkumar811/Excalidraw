@@ -268,18 +268,19 @@ function App() {
               )}
             </div>
 
-            {}
-            <div className="text-center">
-              <p className="text-sm text-slate-500 mb-4">or</p>
-              <Button
-                variant="ghost"
-                onClick={joinRandomRoom}
-                className="text-violet-600 hover:text-violet-700 hover:bg-violet-50"
-              >
-                <Zap className="w-4 h-4 mr-2" />
-                Quick Start - No Account Needed
-              </Button>
-            </div>
+            {!user && (
+              <div className="text-center">
+                <p className="text-sm text-slate-500 mb-4">or</p>
+                <Button
+                  variant="ghost"
+                  onClick={joinRandomRoom}
+                  className="text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  Quick Start - No Account Needed
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </section>

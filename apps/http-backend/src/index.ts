@@ -239,6 +239,7 @@ app.get("/room/:slug", async function (req, res) {
   });
 
   if (!room) {
+<<<<<<< HEAD
     try {
       const guestUser = await prismaClient.user.findFirst({
         where: {
@@ -275,6 +276,28 @@ app.get("/room/:slug", async function (req, res) {
       });
       return;
     }
+=======
+    let guestUser = await prismaClient.user.findUnique({
+      where: { email: 'guest@demo.com' }
+    });
+
+    if (!guestUser) {
+      guestUser = await prismaClient.user.create({
+        data: {
+          email: 'guest@demo.com',
+          password: 'guest',
+          name: 'Guest User'
+        }
+      });
+    }
+
+    room = await prismaClient.room.create({
+      data: {
+        slug: slug,
+        adminId: guestUser.id,
+      },
+    });
+>>>>>>> ff680d6769fcd67d458f1e67330e645acc84dba0
   }
 
   res.json({
