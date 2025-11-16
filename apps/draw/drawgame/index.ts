@@ -630,11 +630,7 @@ export async function initDraw(
             })
           );
 
-<<<<<<< HEAD
           callbacks.onHistoryChange(elements, historyIndex);
-=======
-          callbacks.onHistoryChange(elements, elements.length - 1);
->>>>>>> ff680d6769fcd67d458f1e67330e645acc84dba0
         }
       }
       return;
@@ -664,11 +660,7 @@ export async function initDraw(
           })
         );
 
-<<<<<<< HEAD
         callbacks.onHistoryChange(elements, historyIndex);
-=======
-        callbacks.onHistoryChange(elements, elements.length - 1);
->>>>>>> ff680d6769fcd67d458f1e67330e645acc84dba0
       }
       return;
     }
