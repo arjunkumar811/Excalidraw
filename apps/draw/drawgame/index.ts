@@ -69,6 +69,7 @@ export function setCurrentTool(tool: Tool) {
   selectedElementIndex = -1;
   isDragging = false;
   isResizing = false;
+  isErasing = false;
   if (canvasRef && canvasCtx) {
     redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
   }
@@ -556,6 +557,25 @@ export async function initDraw(
         }
         
         if (isPointInElement(startX, startY, selectedElement)) {
+          if (selectedElement.type === "text") {
+            const newText = prompt("Edit text:", selectedElement.text || "");
+            if (newText !== null) {
+              elements[selectedElementIndex].text = newText;
+              redrawCanvas(canvas, ctx, isDarkModeGlobal);
+              drawSelectionBox(ctx, elements[selectedElementIndex]);
+              
+              socket.send(
+                JSON.stringify({
+                  type: "elementUpdated",
+                  element: elements[selectedElementIndex],
+                  roomId,
+                })
+              );
+              callbacks.onHistoryChange(elements, elements.length - 1);
+            }
+            return;
+          }
+          
           isDragging = true;
           dragOffsetX = startX - selectedElement.x;
           dragOffsetY = startY - selectedElement.y;
@@ -585,11 +605,19 @@ export async function initDraw(
     }
 
     if (currentTool === "eraser") {
-      // Find and remove element at click position
+      isErasing = true;
       const elementToRemove = findElementAtPosition(startX, startY);
       if (elementToRemove) {
         const index = elements.indexOf(elementToRemove);
         if (index > -1) {
+          if (selectedElementIndex === index) {
+            selectedElement = null;
+            selectedElementIndex = -1;
+          } else if (selectedElementIndex > index) {
+            selectedElementIndex--;
+          }
+          
+          const elementId = elementToRemove.id;
           elements.splice(index, 1);
           saveHistory();
           redrawCanvas(canvas, ctx, isDarkModeGlobal);
@@ -597,12 +625,16 @@ export async function initDraw(
           socket.send(
             JSON.stringify({
               type: "elementRemoved",
-              elementId: elementToRemove.id,
+              elementId: elementId,
               roomId,
             })
           );
 
+<<<<<<< HEAD
           callbacks.onHistoryChange(elements, historyIndex);
+=======
+          callbacks.onHistoryChange(elements, elements.length - 1);
+>>>>>>> ff680d6769fcd67d458f1e67330e645acc84dba0
         }
       }
       return;
@@ -632,7 +664,11 @@ export async function initDraw(
           })
         );
 
+<<<<<<< HEAD
         callbacks.onHistoryChange(elements, historyIndex);
+=======
+        callbacks.onHistoryChange(elements, elements.length - 1);
+>>>>>>> ff680d6769fcd67d458f1e67330e645acc84dba0
       }
       return;
     }
@@ -719,6 +755,36 @@ export async function initDraw(
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
 
+    if (currentTool === "eraser" && isErasing) {
+      const elementToRemove = findElementAtPosition(currentX, currentY);
+      if (elementToRemove) {
+        const index = elements.indexOf(elementToRemove);
+        if (index > -1) {
+          if (selectedElementIndex === index) {
+            selectedElement = null;
+            selectedElementIndex = -1;
+          } else if (selectedElementIndex > index) {
+            selectedElementIndex--;
+          }
+          
+          const elementId = elementToRemove.id;
+          elements.splice(index, 1);
+          redrawCanvas(canvas, ctx, isDarkModeGlobal);
+          
+          socket.send(
+            JSON.stringify({
+              type: "elementRemoved",
+              elementId: elementId,
+              roomId,
+            })
+          );
+
+          callbacks.onHistoryChange(elements, elements.length - 1);
+        }
+      }
+      return;
+    }
+
     if (currentTool === "select") {
       if (isResizing && selectedElement && resizeHandle && selectedElementIndex !== -1) {
         resizeElement(elements[selectedElementIndex], resizeHandle, currentX, currentY, dragStartX, dragStartY);
@@ -772,6 +838,11 @@ export async function initDraw(
   };
 
   const handleMouseUp = () => {
+    if (currentTool === "eraser") {
+      isErasing = false;
+      return;
+    }
+
     if (currentTool === "select") {
       if ((isDragging || isResizing) && selectedElement && selectedElementIndex !== -1) {
         saveHistory();
