@@ -12,7 +12,15 @@ import {
   ArrowRight,
   Palette,
   Zap,
+  Sparkles,
+  Star,
+  Mail,
+  Twitter,
+  Linkedin,
+  CheckCircle2,
 } from "lucide-react";
+import { motion } from "framer-motion";
+import { FaDiscord, FaYoutube } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
