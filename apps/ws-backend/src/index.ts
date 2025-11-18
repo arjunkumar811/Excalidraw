@@ -281,6 +281,151 @@ wss.on("connection", (ws: WebSocket, request) => {
         });
       }
     }
+
+    if (ParseData.type === "clearCanvas") {
+      const { roomId } = ParseData;
+      console.log("Received clearCanvas request for room:", roomId);
+
+      if (!roomId) {
+        ws.send(JSON.stringify({ message: "Invalid clearCanvas payload" }));
+        return;
+      }
+
+      const user = users.find((x) => x.ws === ws);
+      if (user) {
+        console.log("User found, clearing room:", roomId);
+        
+        if (!user.userId.startsWith("guest_")) {
+          try {
+            await prismaClient.drawing.deleteMany({
+              where: {
+                roomId: Number(roomId),
+              },
+            });
+            console.log("Cleared database drawings for room:", roomId);
+          } catch (error) {
+            console.error("Failed to clear drawings from database:", error);
+          }
+        }
+
+        const usersInRoom = users.filter((u) => u.rooms.includes(roomId.toString()) && u.ws !== ws);
+        console.log("Broadcasting clearCanvas to", usersInRoom.length, "users");
+        
+        users.forEach((u) => {
+          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+            u.ws.send(
+              JSON.stringify({
+                type: "clearCanvas",
+                roomId,
+                userId: user.userId,
+              })
+            );
+          }
+        });
+      }
+    }
+
+    if (ParseData.type === "undo") {
+      const { roomId, elements } = ParseData;
+      console.log("Received undo request for room:", roomId);
+
+      if (!roomId || !Array.isArray(elements)) {
+        ws.send(JSON.stringify({ message: "Invalid undo payload" }));
+        return;
+      }
+
+      const user = users.find((x) => x.ws === ws);
+      if (user) {
+        console.log("Broadcasting undo to room:", roomId);
+        
+        if (!user.userId.startsWith("guest_")) {
+          try {
+            await prismaClient.drawing.deleteMany({
+              where: {
+                roomId: Number(roomId),
+              },
+            });
+
+            if (elements.length > 0) {
+              await prismaClient.drawing.createMany({
+                data: elements.map((element: any) => ({
+                  roomId: Number(roomId),
+                  elementId: element.id,
+                  elementData: JSON.stringify(element),
+                  userId: user.userId,
+                })),
+              });
+            }
+          } catch (error) {
+            console.error("Failed to sync undo to database:", error);
+          }
+        }
+
+        users.forEach((u) => {
+          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+            u.ws.send(
+              JSON.stringify({
+                type: "undo",
+                elements: elements,
+                roomId,
+                userId: user.userId,
+              })
+            );
+          }
+        });
+      }
+    }
+
+    if (ParseData.type === "redo") {
+      const { roomId, elements } = ParseData;
+      console.log("Received redo request for room:", roomId);
+
+      if (!roomId || !Array.isArray(elements)) {
+        ws.send(JSON.stringify({ message: "Invalid redo payload" }));
+        return;
+      }
+
+      const user = users.find((x) => x.ws === ws);
+      if (user) {
+        console.log("Broadcasting redo to room:", roomId);
+        
+        if (!user.userId.startsWith("guest_")) {
+          try {
+            await prismaClient.drawing.deleteMany({
+              where: {
+                roomId: Number(roomId),
+              },
+            });
+
+            if (elements.length > 0) {
+              await prismaClient.drawing.createMany({
+                data: elements.map((element: any) => ({
+                  roomId: Number(roomId),
+                  elementId: element.id,
+                  elementData: JSON.stringify(element),
+                  userId: user.userId,
+                })),
+              });
+            }
+          } catch (error) {
+            console.error("Failed to sync redo to database:", error);
+          }
+        }
+
+        users.forEach((u) => {
+          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+            u.ws.send(
+              JSON.stringify({
+                type: "redo",
+                elements: elements,
+                roomId,
+                userId: user.userId,
+              })
+            );
+          }
+        });
+      }
+    }
   });
   ws.on("close", () => {
     const userIndex = users.findIndex((x) => x.ws === ws);

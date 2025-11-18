@@ -44,7 +44,7 @@ let elements: DrawingElement[] = [];
 let currentElement: DrawingElement | null = null;
 let isDarkModeGlobal: boolean = false;
 let history: DrawingElement[][] = [];
-let historyStep: number = -1;
+let historyIndex: number = -1;
 let selectedElement: DrawingElement | null = null;
 let selectedElementIndex: number = -1;
 let isDragging = false;
@@ -61,6 +61,8 @@ let historyCallbacks: {
 } | null = null;
 let canvasRef: HTMLCanvasElement | null = null;
 let canvasCtx: CanvasRenderingContext2D | null = null;
+let socketRef: WebSocket | null = null;
+let roomIdRef: string = "";
 
 export function setCurrentTool(tool: Tool) {
   selectedElement = null;
@@ -79,28 +81,46 @@ export function setDarkMode(isDark: boolean) {
 }
 
 export function undo() {
-  if (elements.length > 0) {
-    const lastElement = elements.pop();
-    if (lastElement && canvasRef && canvasCtx) {
-      history.push([lastElement]);
-      historyStep++;
+  if (historyIndex > 0) {
+    historyIndex--;
+    elements = JSON.parse(JSON.stringify(history[historyIndex]));
+    if (canvasRef && canvasCtx) {
       redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
       if (historyCallbacks) {
-        historyCallbacks.onHistoryChange(elements, elements.length - 1);
+        historyCallbacks.onHistoryChange(elements, historyIndex);
+      }
+      if (socketRef && roomIdRef) {
+        console.log("Sending undo to room:", roomIdRef);
+        socketRef.send(
+          JSON.stringify({
+            type: "undo",
+            elements: elements,
+            roomId: roomIdRef,
+          })
+        );
       }
     }
   }
 }
 
 export function redo() {
-  if (history.length > 0 && historyStep >= 0) {
-    const elementsToRestore = history.pop();
-    if (elementsToRestore && canvasRef && canvasCtx) {
-      elements.push(...elementsToRestore);
-      historyStep--;
+  if (historyIndex < history.length - 1) {
+    historyIndex++;
+    elements = JSON.parse(JSON.stringify(history[historyIndex]));
+    if (canvasRef && canvasCtx) {
       redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
       if (historyCallbacks) {
-        historyCallbacks.onHistoryChange(elements, elements.length - 1);
+        historyCallbacks.onHistoryChange(elements, historyIndex);
+      }
+      if (socketRef && roomIdRef) {
+        console.log("Sending redo to room:", roomIdRef);
+        socketRef.send(
+          JSON.stringify({
+            type: "redo",
+            elements: elements,
+            roomId: roomIdRef,
+          })
+        );
       }
     }
   }
@@ -108,14 +128,33 @@ export function redo() {
 
 export function clearCanvas() {
   elements = [];
-  history = [];
-  historyStep = -1;
+  history = [[]];
+  historyIndex = 0;
   if (canvasRef && canvasCtx) {
     redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
     if (historyCallbacks) {
-      historyCallbacks.onHistoryChange(elements, elements.length - 1);
+      historyCallbacks.onHistoryChange(elements, 0);
+    }
+    if (socketRef && roomIdRef) {
+      console.log("Sending clearCanvas message to room:", roomIdRef);
+      socketRef.send(
+        JSON.stringify({
+          type: "clearCanvas",
+          roomId: roomIdRef,
+        })
+      );
+    } else {
+      console.log("Socket or roomId not available:", { socketRef: !!socketRef, roomIdRef });
     }
   }
+}
+
+function saveHistory() {
+  if (historyIndex < history.length - 1) {
+    history = history.slice(0, historyIndex + 1);
+  }
+  history.push(JSON.parse(JSON.stringify(elements)));
+  historyIndex = history.length - 1;
 }
 
 function getStrokeColor(): string {
@@ -427,7 +466,11 @@ export async function initDraw(
   historyCallbacks = callbacks;
   currentTool = tool;
   isDarkModeGlobal = isDarkMode;
+  socketRef = socket;
+  roomIdRef = roomId;
   elements = await getExistingElements(roomId);
+  history = [JSON.parse(JSON.stringify(elements))];
+  historyIndex = 0;
   redrawCanvas(canvas, ctx, isDarkMode);
 
   socket.onmessage = (event) => {
@@ -439,7 +482,7 @@ export async function initDraw(
       if (selectedElement && selectedElementIndex !== -1) {
         drawSelectionBox(ctx, elements[selectedElementIndex]);
       }
-      callbacks.onHistoryChange(elements, elements.length - 1);
+      callbacks.onHistoryChange(elements, historyIndex);
     } else if (message.type === "elementRemoved") {
       const elementIndex = elements.findIndex(el => el.id === message.elementId);
       if (elementIndex > -1) {
@@ -454,7 +497,7 @@ export async function initDraw(
         if (selectedElement && selectedElementIndex !== -1) {
           drawSelectionBox(ctx, elements[selectedElementIndex]);
         }
-        callbacks.onHistoryChange(elements, elements.length - 1);
+        callbacks.onHistoryChange(elements, historyIndex);
       }
     } else if (message.type === "elementUpdated") {
       const elementIndex = elements.findIndex(el => el.id === message.element.id);
@@ -467,8 +510,31 @@ export async function initDraw(
         if (selectedElement && selectedElementIndex !== -1) {
           drawSelectionBox(ctx, elements[selectedElementIndex]);
         }
-        callbacks.onHistoryChange(elements, elements.length - 1);
+        callbacks.onHistoryChange(elements, historyIndex);
       }
+    } else if (message.type === "clearCanvas") {
+      console.log("Received clearCanvas message");
+      elements = [];
+      history = [[]];
+      historyIndex = 0;
+      selectedElement = null;
+      selectedElementIndex = -1;
+      redrawCanvas(canvas, ctx, isDarkMode);
+      callbacks.onHistoryChange(elements, 0);
+    } else if (message.type === "undo") {
+      console.log("Received undo message");
+      elements = message.elements;
+      selectedElement = null;
+      selectedElementIndex = -1;
+      redrawCanvas(canvas, ctx, isDarkMode);
+      callbacks.onHistoryChange(elements, historyIndex);
+    } else if (message.type === "redo") {
+      console.log("Received redo message");
+      elements = message.elements;
+      selectedElement = null;
+      selectedElementIndex = -1;
+      redrawCanvas(canvas, ctx, isDarkMode);
+      callbacks.onHistoryChange(elements, historyIndex);
     }
   };
 
@@ -553,6 +619,7 @@ export async function initDraw(
           
           const elementId = elementToRemove.id;
           elements.splice(index, 1);
+          saveHistory();
           redrawCanvas(canvas, ctx, isDarkModeGlobal);
           
           socket.send(
@@ -563,7 +630,7 @@ export async function initDraw(
             })
           );
 
-          callbacks.onHistoryChange(elements, elements.length - 1);
+          callbacks.onHistoryChange(elements, historyIndex);
         }
       }
       return;
@@ -582,6 +649,7 @@ export async function initDraw(
           strokeWidth: 2,
         };
         elements.push(textElement);
+        saveHistory();
         redrawCanvas(canvas, ctx, isDarkModeGlobal);
         
         socket.send(
@@ -592,7 +660,7 @@ export async function initDraw(
           })
         );
 
-        callbacks.onHistoryChange(elements, elements.length - 1);
+        callbacks.onHistoryChange(elements, historyIndex);
       }
       return;
     }
@@ -769,6 +837,7 @@ export async function initDraw(
 
     if (currentTool === "select") {
       if ((isDragging || isResizing) && selectedElement && selectedElementIndex !== -1) {
+        saveHistory();
         socket.send(
           JSON.stringify({
             type: "elementUpdated",
@@ -777,7 +846,7 @@ export async function initDraw(
           })
         );
         
-        callbacks.onHistoryChange(elements, elements.length - 1);
+        callbacks.onHistoryChange(elements, historyIndex);
       }
       isDragging = false;
       isResizing = false;
@@ -789,6 +858,7 @@ export async function initDraw(
 
     isDrawing = false;
     elements.push(currentElement);
+    saveHistory();
 
     redrawCanvas(canvas, ctx, isDarkModeGlobal);
 
@@ -801,7 +871,7 @@ export async function initDraw(
     );
 
     currentElement = null;
-    callbacks.onHistoryChange(elements, elements.length - 1);
+    callbacks.onHistoryChange(elements, historyIndex);
   };
 
   canvas.addEventListener("mousedown", handleMouseDown);
