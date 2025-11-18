@@ -524,6 +524,9 @@ export async function initDraw(
     } else if (message.type === "undo") {
       console.log("Received undo message");
       elements = message.elements;
+      history = history.slice(0, historyIndex + 1);
+      history.push(JSON.parse(JSON.stringify(elements)));
+      historyIndex = history.length - 1;
       selectedElement = null;
       selectedElementIndex = -1;
       redrawCanvas(canvas, ctx, isDarkMode);
@@ -531,6 +534,9 @@ export async function initDraw(
     } else if (message.type === "redo") {
       console.log("Received redo message");
       elements = message.elements;
+      history = history.slice(0, historyIndex + 1);
+      history.push(JSON.parse(JSON.stringify(elements)));
+      historyIndex = history.length - 1;
       selectedElement = null;
       selectedElementIndex = -1;
       redrawCanvas(canvas, ctx, isDarkMode);
