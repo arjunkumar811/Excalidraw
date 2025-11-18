@@ -398,8 +398,7 @@ function App() {
               <Link href="/signup">
                 <Button
                   size="lg"
-                  className="bg-white !text-slate-900 hover:bg-gray-50 hover:scale-105 px-12 py-7 h-auto text-lg font-bold shadow-2xl transition-all duration-300 rounded-2xl"
-                  style={{ color: '#0f172a' }}
+                  className="bg-white text-slate-900 hover:bg-gray-50 hover:scale-105 px-12 py-7 h-auto text-lg font-bold shadow-2xl transition-all duration-300 rounded-2xl [&]:text-slate-900"
                 >
                   Start Creating Now
                   <ArrowRight className="ml-2 w-6 h-6" />

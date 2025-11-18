@@ -1,84 +1,143 @@
-# Turborepo starter
+# Excalidraw - Collaborative Whiteboard
 
-This Turborepo starter is maintained by the Turborepo core team.
+A real-time collaborative whiteboard application built with Next.js, WebSocket, and PostgreSQL. Create, share, and collaborate on diagrams, sketches, and wireframes with your team instantly.
 
-## Using this example
+## ✨ Demo
 
-Run the following command:
+https://github.com/user-attachments/assets/YOUR_VIDEO_ID
 
-```sh
-npx create-turbo@latest
-```
+<video src="./apps/asset/Recording 2025-11-18 224412.mp4" controls autoplay loop muted></video>
 
-## What's inside?
+## 🚀 Features
 
-This Turborepo includes the following packages/apps:
+- **Real-Time Collaboration** - Multiple users can draw simultaneously with instant synchronization
+- **Drawing Tools** - Rectangle, Circle, Line, Pencil, Text, and Selection tools
+- **Undo/Redo** - Full history support synced across all users
+- **Room Management** - Create and share workspaces with team members
+- **Authentication** - Secure user authentication with JWT
+- **Guest Mode** - Try the app without signing up
+- **Modern UI** - Beautiful, responsive design with Tailwind CSS and Framer Motion animations
 
-### Apps and Packages
+## 🛠️ Tech Stack
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, Framer Motion
+- **Backend**: Express.js, WebSocket (ws), Prisma ORM
+- **Database**: PostgreSQL (Neon)
+- **Monorepo**: Turborepo with pnpm workspaces
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
+## 📦 Project Structure
 
 ```
-cd my-turborepo
-pnpm build
+apps/
+├── draw/              # Next.js frontend application
+├── http-backend/      # Express REST API server
+└── ws-backend/        # WebSocket server for real-time sync
+packages/
+├── db/               # Prisma database schema and client
+├── common/           # Shared types
+└── ui/               # Shared UI components
 ```
 
-### Develop
+## 🏃‍♂️ Getting Started
 
-To develop all apps and packages, run the following command:
+### Prerequisites
 
-```
-cd my-turborepo
-pnpm dev
-```
+- Node.js 18+
+- pnpm 9+
+- PostgreSQL database (or Neon account)
 
 ### Remote Caching
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+### Installation
 
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
+1. Clone the repository
+```bash
+git clone https://github.com/arjunkumar811/Excalidraw.git
+cd Excalidraw
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
+2. Install dependencies
+```bash
+pnpm install
 ```
 
-## Useful Links
+3. Set up environment variables
 
-Learn more about the power of Turborepo:
+Create `.env` files in the following locations:
 
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+**`packages/db/.env`**
+```env
+DATABASE_URL="postgresql://user:password@host:5432/database"
+```
+
+**`apps/http-backend/.env`**
+```env
+DATABASE_URL="postgresql://user:password@host:5432/database"
+JWT_SECRET="your-super-secret-jwt-key"
+PORT=3002
+```
+
+**`apps/ws-backend/.env`**
+```env
+DATABASE_URL="postgresql://user:password@host:5432/database"
+JWT_SECRET="your-super-secret-jwt-key"
+PORT=8080
+```
+
+**`apps/draw/.env.local`**
+```env
+NEXT_PUBLIC_WS_URL="ws://localhost:8080"
+NEXT_PUBLIC_HTTP_BACKEND="http://localhost:3002"
+```
+
+4. Run database migrations
+```bash
+cd packages/db
+pnpm db:migrate
+```
+
+5. Start the development servers
+```bash
+cd ../..
+pnpm dev
+```
+
+The application will be available at:
+- Frontend: `http://localhost:3000`
+- HTTP Backend: `http://localhost:3002`
+- WebSocket Server: `ws://localhost:8080`
+
+## 🚢 Deployment
+
+### Deploy to Railway (Recommended)
+
+1. Create a new project on [Railway](https://railway.app)
+2. Add PostgreSQL database service
+3. Deploy each service:
+   - `http-backend` (Port: 3002)
+   - `ws-backend` (Port: 8080)
+   - `draw` (Next.js app)
+4. Set environment variables for each service
+5. Run migrations: `npx prisma migrate deploy`
+
+### Deploy to Vercel
+
+The frontend can be deployed to Vercel:
+```bash
+cd apps/draw
+vercel deploy
+```
+
+Backend services need to be deployed separately (Railway, Render, etc.)
+
+## 📝 License
+
+MIT
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests.
+
+## 📧 Contact
+
+For questions or support, please open an issue on GitHub.
