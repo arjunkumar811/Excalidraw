@@ -4,10 +4,7 @@ A real-time collaborative whiteboard application built with Next.js, WebSocket, 
 
 ## ✨ Demo
 
-![Excalidraw Demo](https://img.shields.io/badge/Demo-Live-success?style=for-the-badge)
-
-> **Note:** Upload your demo video to YouTube or create a GIF demo, then add the link here.
-> To add: `[![Demo Video](thumbnail.jpg)](https://your-video-url)`
+https://github.com/user-attachments/assets/d4e7b43c-8829-496e-a91f-c9745e3b0fb4
 
 ## 🚀 Features
 
