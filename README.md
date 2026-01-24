@@ -2,8 +2,6 @@
 
 A real-time collaborative whiteboard application built with Next.js, WebSocket, and PostgreSQL. Create, share, and collaborate on diagrams, sketches, and wireframes with your team instantly.
 
-## ✨ Demo
-
 ## 🚀 Features
 
 - **Real-Time Collaboration** - Multiple users can draw simultaneously with instant synchronization
