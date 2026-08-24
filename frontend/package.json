@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@repo/ui": "workspace:*",
     "axios": "^1.7.9",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.475.0",

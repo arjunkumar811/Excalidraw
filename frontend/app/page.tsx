@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@repo/ui/button";
-import { Card } from "@repo/ui/card";
+import { Button } from "@/components/button";
+import { Card } from "@/components/card";
 import {
   Pencil,
   Share2,
