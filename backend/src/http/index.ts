@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "../config/config";
+import { JWT_SECRET } from "../config/config.js";
 import { middleware } from "./middleware.js";
 import cors from "cors";
 
@@ -8,8 +8,8 @@ import {
   CreateRoomSchema,
   CreateUserSchema,
   SigninSchema,
-} from "../common/types";
-import { prismaClient } from "../db/client";
+} from "../common/types.js";
+import { prismaClient } from "../db/client.js";
 const PORT = process.env.PORT || 3002;
 
 const app = express();
@@ -299,7 +299,7 @@ app.get("/drawings/:roomId", async function (req, res) {
       },
     });
 
-    const elements = drawings.map(drawing => JSON.parse(drawing.elementData));
+    const elements = drawings.map((drawing: any) => JSON.parse(drawing.elementData));
 
     res.json({
       drawings: elements,
