@@ -14,12 +14,12 @@ export function IconButton({
   const [showTooltip, setShowTooltip] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center justify-center group">
       <button
-        className={`p-2 rounded-lg transition-all duration-200 hover:scale-105 ${
+        className={`p-2 rounded-xl transition-all duration-150 ease-out flex items-center justify-center ${
           activated
-            ? "bg-blue-100 text-blue-600 shadow-sm"
-            : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+            ? "bg-violet-100 text-violet-700 shadow-sm scale-105"
+            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:scale-95"
         }`}
         onClick={onClick}
         onMouseEnter={() => setShowTooltip(true)}
@@ -29,9 +29,9 @@ export function IconButton({
       </button>
 
       {tooltip && showTooltip && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-50">
+        <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 px-2.5 py-1.5 bg-slate-800 text-white text-[11px] font-medium tracking-wide rounded-md shadow-lg whitespace-nowrap z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
           {tooltip}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-transparent border-b-slate-800"></div>
         </div>
       )}
     </div>

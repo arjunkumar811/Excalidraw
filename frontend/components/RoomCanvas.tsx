@@ -74,16 +74,16 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
 
   if (connectionStatus === "error") {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center">
+      <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900 bg-dot-pattern transition-colors">
+        <div className="text-center bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 p-8 rounded-2xl shadow-lg animate-in fade-in zoom-in-95 duration-300">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
             Connection Failed
           </h2>
-          <p className="text-gray-600 mb-4">{errorMessage}</p>
+          <p className="text-slate-600 dark:text-slate-400 mb-6">{errorMessage}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-6 py-2.5 bg-violet-600 text-white font-medium rounded-xl hover:bg-violet-700 active:scale-95 transition-all shadow-sm"
           >
             Try Again
           </button>
@@ -94,16 +94,18 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
 
   if (!socket || connectionStatus === "connecting" || !numericRoomId) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900 bg-dot-pattern transition-colors">
+        <div className="text-center bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 p-8 rounded-2xl shadow-lg animate-in fade-in zoom-in-95 duration-300">
+          <Loader2 className="w-12 h-12 text-violet-600 mx-auto mb-4 animate-spin" />
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
             Connecting to Room
           </h2>
-          <p className="text-gray-600">
+          <p className="text-slate-600 dark:text-slate-400">
             Setting up your collaborative workspace...
           </p>
-          <div className="mt-4 text-sm text-gray-500">Room: {roomId}</div>
+          <div className="mt-6 inline-flex items-center justify-center px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded-full text-xs font-medium text-slate-500 dark:text-slate-400 font-mono">
+            Room: {roomId.slice(-6)}
+          </div>
         </div>
       </div>
     );
