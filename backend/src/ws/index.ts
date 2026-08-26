@@ -1,112 +1,75 @@
 import { WebSocket, WebSocketServer } from "ws";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import { JWT_SECRET } from "../config/config.js";
-import { prismaClient } from "../db/client.js";
 
 const wss = new WebSocketServer({ port: 8080 });
 
-interface Users {
+interface DrawingElement {
+  type: string;
+  id: string;
+  x: number;
+  y: number;
+  [key: string]: any;
+}
+
+interface Room {
+  id: string;
+  elements: DrawingElement[];
+}
+
+const rooms: Record<string, Room> = {};
+
+interface User {
   ws: WebSocket;
-  rooms: string[];
+  roomId: string | null;
   userId: string;
 }
 
-const users: Users[] = [];
-
-function CheckUser(token: string): string | null {
-  if (token.startsWith("guest_")) {
-    return token;
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-
-    if (!decoded || !decoded.userId) {
-      return null;
-    }
-
-    return decoded.userId;
-  } catch (err: any) {
-    if (err.name === "TokenExpiredError") {
-      console.error("Token expired");
-    } else {
-      console.error("Invalid token:", err.message);
-    }
-    return null;
-  }
-}
+const users: User[] = [];
 
 wss.on("connection", (ws: WebSocket, request) => {
   const url = request.url;
-
   if (!url) {
     ws.close();
     return;
   }
 
-  const queryParams = new URLSearchParams(url.split("?")[1]);
-  const token = queryParams.get("token");
-
-  if (!token) {
-    ws.send(
-      JSON.stringify({
-        message: "Unauthorized",
-      })
-    );
-    ws.close();
-    return;
-  }
-
-  const userAuthenticated = CheckUser(token);
-
-  if (!userAuthenticated) {
-    ws.close();
-    return;
-  }
+  // Use a generated random user ID for simplicity
+  const userId = "guest_" + Math.random().toString(36).substring(2, 9);
 
   users.push({
-    userId: userAuthenticated,
-    rooms: [],
+    userId,
+    roomId: null,
     ws,
   });
 
-  ws.on("message", async function message(data) {
-    let ParseData;
-
+  ws.on("message", (data) => {
+    let parsedData;
     try {
-      ParseData = JSON.parse(data.toString());
+      parsedData = JSON.parse(data.toString());
     } catch (err) {
       ws.send(JSON.stringify({ message: "Invalid message format" }));
       return;
     }
-    if (ParseData.type === "join_room") {
+
+    if (parsedData.type === "join_room") {
       const user = users.find((x) => x.ws === ws);
       if (user) {
-        user.rooms.push(ParseData.roomId);
+        const roomId = parsedData.roomId;
+        user.roomId = roomId;
 
-        const usersInRoom = users.filter((u) =>
-          u.rooms.includes(ParseData.roomId)
+        if (!rooms[roomId]) {
+          rooms[roomId] = { id: roomId, elements: [] };
+        }
+
+        // Send existing elements to the newly joined user
+        ws.send(
+          JSON.stringify({
+            type: "init",
+            elements: rooms[roomId].elements,
+          })
         );
 
-        usersInRoom.forEach((u) => {
-          u.ws.send(
-            JSON.stringify({
-              type: "userCount",
-              count: usersInRoom.length,
-              roomId: ParseData.roomId,
-            })
-          );
-        });
-      }
-    }
-    if (ParseData.type === "leave_room") {
-      const user = users.find((x) => x.ws === ws);
-      if (user) {
-        const roomId = ParseData.roomId || ParseData.room;
-        user.rooms = user.rooms.filter((x) => x !== roomId);
-
-        const usersInRoom = users.filter((u) => u.rooms.includes(roomId));
-
+        // Broadcast user count
+        const usersInRoom = users.filter((u) => u.roomId === roomId);
         usersInRoom.forEach((u) => {
           u.ws.send(
             JSON.stringify({
@@ -118,82 +81,27 @@ wss.on("connection", (ws: WebSocket, request) => {
         });
       }
     }
-    if (ParseData.type === "chat") {
-      const { roomId, message } = ParseData;
 
-      if (!roomId || typeof message !== "string") {
-        ws.send(JSON.stringify({ message: "Invalid chat payload" }));
-        return;
-      }
-
-      const user = users.find((x) => x.ws === ws);
-      if (user) {
-        if (!user.userId.startsWith("guest_")) {
-          try {
-            await prismaClient.chat.create({
-              data: {
-                roomId: Number(roomId),
-                message,
-                userId: user.userId,
-              },
-            });
-          } catch (error) {
-            console.error("Failed to save chat message to database:", error);
-          }
-        }
-
-        users.forEach((u) => {
-          if (u.rooms.includes(roomId.toString())) {
-            u.ws.send(
-              JSON.stringify({
-                type: "chat",
-                message: message,
-                roomId,
-                userId: user.userId,
-              })
-            );
-          }
-        });
-      }
-    }
-
-    if (ParseData.type === "drawing") {
-      const { roomId, message } = ParseData;
-
-      if (!roomId) {
-        ws.send(JSON.stringify({ message: "Invalid drawing payload - missing roomId" }));
-        return;
-      }
+    if (parsedData.type === "drawing") {
+      const { roomId, message } = parsedData;
+      if (!roomId) return;
 
       const user = users.find((x) => x.ws === ws);
       if (user) {
         try {
           const element = JSON.parse(message);
-          
-          if (!user.userId.startsWith("guest_")) {
-            try {
-              await prismaClient.drawing.create({
-                data: {
-                  roomId: Number(roomId),
-                  elementId: element.id,
-                  elementData: message,
-                  userId: user.userId,
-                },
-              });
-            } catch (error) {
-              console.error("Failed to save drawing to database:", error);
-            }
-          }
+          if (!rooms[roomId]) rooms[roomId] = { id: roomId, elements: [] };
+          rooms[roomId].elements.push(element);
         } catch (e) {
           console.error("Failed to parse drawing element:", e);
         }
 
         users.forEach((u) => {
-          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+          if (u.roomId === roomId && u.ws !== ws) {
             u.ws.send(
               JSON.stringify({
                 type: "drawing",
-                message: message,
+                message,
                 roomId,
                 userId: user.userId,
               })
@@ -203,35 +111,22 @@ wss.on("connection", (ws: WebSocket, request) => {
       }
     }
 
-    if (ParseData.type === "elementRemoved") {
-      const { roomId, elementId } = ParseData;
-
-      if (!roomId || !elementId) {
-        ws.send(JSON.stringify({ message: "Invalid elementRemoved payload" }));
-        return;
-      }
+    if (parsedData.type === "elementRemoved") {
+      const { roomId, elementId } = parsedData;
+      if (!roomId || !elementId) return;
 
       const user = users.find((x) => x.ws === ws);
-      if (user) {
-        if (!user.userId.startsWith("guest_")) {
-          try {
-            await prismaClient.drawing.deleteMany({
-              where: {
-                elementId: elementId,
-                roomId: Number(roomId),
-              },
-            });
-          } catch (error) {
-            console.error("Failed to delete drawing from database:", error);
-          }
-        }
+      if (user && rooms[roomId]) {
+        rooms[roomId].elements = rooms[roomId].elements.filter(
+          (el) => el.id !== elementId
+        );
 
         users.forEach((u) => {
-          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+          if (u.roomId === roomId && u.ws !== ws) {
             u.ws.send(
               JSON.stringify({
                 type: "elementRemoved",
-                elementId: elementId,
+                elementId,
                 roomId,
                 userId: user.userId,
               })
@@ -241,38 +136,23 @@ wss.on("connection", (ws: WebSocket, request) => {
       }
     }
 
-    if (ParseData.type === "elementUpdated") {
-      const { roomId, element } = ParseData;
-
-      if (!roomId || !element) {
-        ws.send(JSON.stringify({ message: "Invalid elementUpdated payload" }));
-        return;
-      }
+    if (parsedData.type === "elementUpdated") {
+      const { roomId, element } = parsedData;
+      if (!roomId || !element) return;
 
       const user = users.find((x) => x.ws === ws);
-      if (user) {
-        if (!user.userId.startsWith("guest_")) {
-          try {
-            await prismaClient.drawing.updateMany({
-              where: {
-                elementId: element.id,
-                roomId: Number(roomId),
-              },
-              data: {
-                elementData: JSON.stringify(element),
-              },
-            });
-          } catch (error) {
-            console.error("Failed to update drawing in database:", error);
-          }
+      if (user && rooms[roomId]) {
+        const index = rooms[roomId].elements.findIndex((el) => el.id === element.id);
+        if (index !== -1) {
+          rooms[roomId].elements[index] = element;
         }
 
         users.forEach((u) => {
-          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+          if (u.roomId === roomId && u.ws !== ws) {
             u.ws.send(
               JSON.stringify({
                 type: "elementUpdated",
-                element: element,
+                element,
                 roomId,
                 userId: user.userId,
               })
@@ -282,37 +162,16 @@ wss.on("connection", (ws: WebSocket, request) => {
       }
     }
 
-    if (ParseData.type === "clearCanvas") {
-      const { roomId } = ParseData;
-      console.log("Received clearCanvas request for room:", roomId);
-
-      if (!roomId) {
-        ws.send(JSON.stringify({ message: "Invalid clearCanvas payload" }));
-        return;
-      }
+    if (parsedData.type === "clearCanvas") {
+      const { roomId } = parsedData;
+      if (!roomId) return;
 
       const user = users.find((x) => x.ws === ws);
-      if (user) {
-        console.log("User found, clearing room:", roomId);
-        
-        if (!user.userId.startsWith("guest_")) {
-          try {
-            await prismaClient.drawing.deleteMany({
-              where: {
-                roomId: Number(roomId),
-              },
-            });
-            console.log("Cleared database drawings for room:", roomId);
-          } catch (error) {
-            console.error("Failed to clear drawings from database:", error);
-          }
-        }
+      if (user && rooms[roomId]) {
+        rooms[roomId].elements = [];
 
-        const usersInRoom = users.filter((u) => u.rooms.includes(roomId.toString()) && u.ws !== ws);
-        console.log("Broadcasting clearCanvas to", usersInRoom.length, "users");
-        
         users.forEach((u) => {
-          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+          if (u.roomId === roomId && u.ws !== ws) {
             u.ws.send(
               JSON.stringify({
                 type: "clearCanvas",
@@ -325,99 +184,20 @@ wss.on("connection", (ws: WebSocket, request) => {
       }
     }
 
-    if (ParseData.type === "undo") {
-      const { roomId, elements } = ParseData;
-      console.log("Received undo request for room:", roomId);
-
-      if (!roomId || !Array.isArray(elements)) {
-        ws.send(JSON.stringify({ message: "Invalid undo payload" }));
-        return;
-      }
+    if (parsedData.type === "undo" || parsedData.type === "redo") {
+      const { roomId, elements } = parsedData;
+      if (!roomId || !Array.isArray(elements)) return;
 
       const user = users.find((x) => x.ws === ws);
-      if (user) {
-        console.log("Broadcasting undo to room:", roomId);
-        
-        if (!user.userId.startsWith("guest_")) {
-          try {
-            await prismaClient.drawing.deleteMany({
-              where: {
-                roomId: Number(roomId),
-              },
-            });
-
-            if (elements.length > 0) {
-              await prismaClient.drawing.createMany({
-                data: elements.map((element: any) => ({
-                  roomId: Number(roomId),
-                  elementId: element.id,
-                  elementData: JSON.stringify(element),
-                  userId: user.userId,
-                })),
-              });
-            }
-          } catch (error) {
-            console.error("Failed to sync undo to database:", error);
-          }
-        }
+      if (user && rooms[roomId]) {
+        rooms[roomId].elements = elements;
 
         users.forEach((u) => {
-          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
+          if (u.roomId === roomId && u.ws !== ws) {
             u.ws.send(
               JSON.stringify({
-                type: "undo",
-                elements: elements,
-                roomId,
-                userId: user.userId,
-              })
-            );
-          }
-        });
-      }
-    }
-
-    if (ParseData.type === "redo") {
-      const { roomId, elements } = ParseData;
-      console.log("Received redo request for room:", roomId);
-
-      if (!roomId || !Array.isArray(elements)) {
-        ws.send(JSON.stringify({ message: "Invalid redo payload" }));
-        return;
-      }
-
-      const user = users.find((x) => x.ws === ws);
-      if (user) {
-        console.log("Broadcasting redo to room:", roomId);
-        
-        if (!user.userId.startsWith("guest_")) {
-          try {
-            await prismaClient.drawing.deleteMany({
-              where: {
-                roomId: Number(roomId),
-              },
-            });
-
-            if (elements.length > 0) {
-              await prismaClient.drawing.createMany({
-                data: elements.map((element: any) => ({
-                  roomId: Number(roomId),
-                  elementId: element.id,
-                  elementData: JSON.stringify(element),
-                  userId: user.userId,
-                })),
-              });
-            }
-          } catch (error) {
-            console.error("Failed to sync redo to database:", error);
-          }
-        }
-
-        users.forEach((u) => {
-          if (u.rooms.includes(roomId.toString()) && u.ws !== ws) {
-            u.ws.send(
-              JSON.stringify({
-                type: "redo",
-                elements: elements,
+                type: parsedData.type,
+                elements,
                 roomId,
                 userId: user.userId,
               })
@@ -427,17 +207,16 @@ wss.on("connection", (ws: WebSocket, request) => {
       }
     }
   });
+
   ws.on("close", () => {
     const userIndex = users.findIndex((x) => x.ws === ws);
     if (userIndex !== -1) {
       const user = users[userIndex];
-      const userRooms = user ? [...user.rooms] : [];
-
+      const roomId = user.roomId;
       users.splice(userIndex, 1);
 
-      userRooms.forEach((roomId) => {
-        const usersInRoom = users.filter((u) => u.rooms.includes(roomId));
-
+      if (roomId) {
+        const usersInRoom = users.filter((u) => u.roomId === roomId);
         usersInRoom.forEach((u) => {
           u.ws.send(
             JSON.stringify({
@@ -447,8 +226,7 @@ wss.on("connection", (ws: WebSocket, request) => {
             })
           );
         });
-      });
+      }
     }
-    console.log("Client disconnected");
   });
 });
