@@ -15,10 +15,7 @@ import {
   MessageCircle,
   Minus,
   ArrowUpRight,
-  Type,
   Diamond,
-  ZoomIn,
-  ZoomOut,
   Sun,
   Moon,
 } from "lucide-react";
@@ -34,7 +31,6 @@ type Tool =
   | "arrow"
   | "line"
   | "pencil"
-  | "text"
   | "eraser";
 
 export function Canvas({
@@ -49,9 +45,10 @@ export function Canvas({
   const [userCount, setUserCount] = useState(1);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
 
   useEffect(() => {
+    let cleanupDraw: (() => void) | void;
+
     if (canvasRef.current) {
       initDraw(
         canvasRef.current,
@@ -62,6 +59,15 @@ export function Canvas({
           onHistoryChange: () => {},
         },
         isDarkMode
+      ).then(cleanup => {
+        cleanupDraw = cleanup;
+      });
+
+      socket.send(
+        JSON.stringify({
+          type: "join_room",
+          roomId: roomId,
+        })
       );
     }
 
@@ -73,8 +79,12 @@ export function Canvas({
     };
 
     socket.addEventListener("message", handleMessage);
-    return () => socket.removeEventListener("message", handleMessage);
-  }, [canvasRef, roomId, socket, selectedTool, isDarkMode]);
+    return () => {
+      socket.removeEventListener("message", handleMessage);
+      if (cleanupDraw) cleanupDraw();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasRef, roomId, socket]);
 
   useEffect(() => {
     setCurrentTool(selectedTool);
@@ -107,10 +117,6 @@ export function Canvas({
         width={window.innerWidth}
         height={window.innerHeight}
         className="block"
-        style={{
-          transform: `scale(${zoomLevel})`,
-          transformOrigin: "top left",
-        }}
       />
 
       {/* TOP LEFT: Home & Room Info */}
@@ -153,7 +159,6 @@ export function Canvas({
           <IconButton activated={selectedTool === "line"} icon={<Minus size={18} />} onClick={() => setSelectedTool("line")} tooltip="Line" />
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
           <IconButton activated={selectedTool === "pencil"} icon={<Pencil size={18} />} onClick={() => setSelectedTool("pencil")} tooltip="Pencil" />
-          <IconButton activated={selectedTool === "text"} icon={<Type size={18} />} onClick={() => setSelectedTool("text")} tooltip="Text" />
           <IconButton activated={selectedTool === "eraser"} icon={<Eraser size={18} />} onClick={() => setSelectedTool("eraser")} tooltip="Eraser" />
         </div>
       </div>
@@ -176,19 +181,6 @@ export function Canvas({
           <IconButton activated={false} icon={<Redo size={18} />} onClick={handleRedo} tooltip="Redo" />
         </div>
         
-        {/* Zoom */}
-        <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm px-2 py-1.5 flex items-center gap-2">
-          <button onClick={() => setZoomLevel(Math.max(0.1, zoomLevel - 0.1))} className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">
-            <ZoomOut size={16} />
-          </button>
-          <span className="text-[11px] font-medium text-slate-600 min-w-[32px] text-center">
-            {Math.round(zoomLevel * 100)}%
-          </span>
-          <button onClick={() => setZoomLevel(Math.min(3, zoomLevel + 0.1))} className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">
-            <ZoomIn size={16} />
-          </button>
-        </div>
-
         {/* Theme Toggle */}
         <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm px-2 py-1.5">
           <IconButton

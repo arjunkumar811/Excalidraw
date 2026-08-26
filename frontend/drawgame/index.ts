@@ -1,5 +1,4 @@
-import { HTTP_BACKEND } from "@/config";
-import axios from "axios";
+
 
 type DrawingElement = {
   type:
@@ -8,8 +7,7 @@ type DrawingElement = {
     | "diamond"
     | "arrow"
     | "line"
-    | "pencil"
-    | "text";
+    | "pencil";
   id: string;
   x: number;
   y: number;
@@ -19,7 +17,6 @@ type DrawingElement = {
   endX?: number;
   endY?: number;
   points?: { x: number; y: number }[];
-  text?: string;
   strokeColor: string;
   fillColor?: string;
   strokeWidth: number;
@@ -33,7 +30,6 @@ type Tool =
   | "arrow"
   | "line"
   | "pencil"
-  | "text"
   | "eraser";
 
 let currentTool: Tool = "select";
@@ -84,6 +80,8 @@ export function undo() {
   if (historyIndex > 0) {
     historyIndex--;
     elements = JSON.parse(JSON.stringify(history[historyIndex]));
+    selectedElement = null;
+    selectedElementIndex = -1;
     if (canvasRef && canvasCtx) {
       redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
       if (historyCallbacks) {
@@ -107,6 +105,8 @@ export function redo() {
   if (historyIndex < history.length - 1) {
     historyIndex++;
     elements = JSON.parse(JSON.stringify(history[historyIndex]));
+    selectedElement = null;
+    selectedElementIndex = -1;
     if (canvasRef && canvasCtx) {
       redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
       if (historyCallbacks) {
@@ -130,6 +130,8 @@ export function clearCanvas() {
   elements = [];
   history = [[]];
   historyIndex = 0;
+  selectedElement = null;
+  selectedElementIndex = -1;
   if (canvasRef && canvasCtx) {
     redrawCanvas(canvasRef, canvasCtx, isDarkModeGlobal);
     if (historyCallbacks) {
@@ -206,10 +208,7 @@ function isPointInElement(x: number, y: number, element: DrawingElement): boolea
         }
       }
       break;
-    case "text":
-      return x >= element.x && x <= element.x + 100 &&
-             y >= element.y - 20 && y <= element.y;
-      break;
+
   }
   return false;
 }
@@ -277,10 +276,6 @@ function drawSelectionBox(ctx: CanvasRenderingContext2D, element: DrawingElement
         height = Math.abs(element.endY - element.y);
       }
       break;
-    case "text":
-      width = 100;
-      height = 20;
-      break;
     case "pencil":
       if (element.points && element.points.length > 0) {
         const xs = element.points.map(p => p.x);
@@ -333,10 +328,6 @@ function getResizeHandle(x: number, y: number, element: DrawingElement): string 
         boundsWidth = Math.abs(element.endX - element.x);
         boundsHeight = Math.abs(element.endY - element.y);
       }
-      break;
-    case "text":
-      boundsWidth = 100;
-      boundsHeight = 20;
       break;
     case "pencil":
       if (element.points && element.points.length > 0) {
@@ -468,18 +459,25 @@ export async function initDraw(
   isDarkModeGlobal = isDarkMode;
   socketRef = socket;
   roomIdRef = roomId;
-  elements = await getExistingElements(roomId);
-  history = [JSON.parse(JSON.stringify(elements))];
+  elements = [];
+  history = [[]];
   historyIndex = 0;
   redrawCanvas(canvas, ctx, isDarkMode);
 
   socket.onmessage = (event) => {
     const message = JSON.parse(event.data);
-    if (message.type === "drawing") {
+    
+    if (message.type === "init") {
+      elements = message.elements || [];
+      history = [JSON.parse(JSON.stringify(elements))];
+      historyIndex = 0;
+      redrawCanvas(canvas, ctx, isDarkMode);
+      callbacks.onHistoryChange(elements, historyIndex);
+    } else if (message.type === "drawing") {
       const element = JSON.parse(message.message);
       elements.push(element);
       redrawCanvas(canvas, ctx, isDarkMode);
-      if (selectedElement && selectedElementIndex !== -1) {
+      if (selectedElement && selectedElementIndex !== -1 && elements[selectedElementIndex]) {
         drawSelectionBox(ctx, elements[selectedElementIndex]);
       }
       callbacks.onHistoryChange(elements, historyIndex);
@@ -494,7 +492,7 @@ export async function initDraw(
         }
         elements.splice(elementIndex, 1);
         redrawCanvas(canvas, ctx, isDarkMode);
-        if (selectedElement && selectedElementIndex !== -1) {
+        if (selectedElement && selectedElementIndex !== -1 && elements[selectedElementIndex]) {
           drawSelectionBox(ctx, elements[selectedElementIndex]);
         }
         callbacks.onHistoryChange(elements, historyIndex);
@@ -507,7 +505,7 @@ export async function initDraw(
           selectedElement = elements[elementIndex];
         }
         redrawCanvas(canvas, ctx, isDarkMode);
-        if (selectedElement && selectedElementIndex !== -1) {
+        if (selectedElement && selectedElementIndex !== -1 && elements[selectedElementIndex]) {
           drawSelectionBox(ctx, elements[selectedElementIndex]);
         }
         callbacks.onHistoryChange(elements, historyIndex);
@@ -546,8 +544,10 @@ export async function initDraw(
 
   const handleMouseDown = (e: MouseEvent) => {
     const rect = canvas.getBoundingClientRect();
-    startX = e.clientX - rect.left;
-    startY = e.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    startX = (e.clientX - rect.left) * scaleX;
+    startY = (e.clientY - rect.top) * scaleY;
 
     if (currentTool === "select") {
       let clickedOnSelected = false;
@@ -563,25 +563,6 @@ export async function initDraw(
         }
         
         if (isPointInElement(startX, startY, selectedElement)) {
-          if (selectedElement.type === "text") {
-            const newText = prompt("Edit text:", selectedElement.text || "");
-            if (newText !== null) {
-              elements[selectedElementIndex].text = newText;
-              redrawCanvas(canvas, ctx, isDarkModeGlobal);
-              drawSelectionBox(ctx, elements[selectedElementIndex]);
-              
-              socket.send(
-                JSON.stringify({
-                  type: "elementUpdated",
-                  element: elements[selectedElementIndex],
-                  roomId,
-                })
-              );
-              callbacks.onHistoryChange(elements, elements.length - 1);
-            }
-            return;
-          }
-          
           isDragging = true;
           dragOffsetX = startX - selectedElement.x;
           dragOffsetY = startY - selectedElement.y;
@@ -638,35 +619,6 @@ export async function initDraw(
 
           callbacks.onHistoryChange(elements, historyIndex);
         }
-      }
-      return;
-    }
-
-    if (currentTool === "text") {
-      const text = prompt("Enter text:");
-      if (text) {
-        const textElement: DrawingElement = {
-          type: "text",
-          id: Math.random().toString(36).substr(2, 9),
-          x: startX,
-          y: startY,
-          text: text,
-          strokeColor: getStrokeColor(),
-          strokeWidth: 2,
-        };
-        elements.push(textElement);
-        saveHistory();
-        redrawCanvas(canvas, ctx, isDarkModeGlobal);
-        
-        socket.send(
-          JSON.stringify({
-            type: "drawing",
-            message: JSON.stringify(textElement),
-            roomId,
-          })
-        );
-
-        callbacks.onHistoryChange(elements, historyIndex);
       }
       return;
     }
@@ -750,8 +702,10 @@ export async function initDraw(
 
   const handleMouseMove = (e: MouseEvent) => {
     const rect = canvas.getBoundingClientRect();
-    const currentX = e.clientX - rect.left;
-    const currentY = e.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const currentX = (e.clientX - rect.left) * scaleX;
+    const currentY = (e.clientY - rect.top) * scaleY;
 
     if (currentTool === "eraser" && isErasing) {
       const elementToRemove = findElementAtPosition(currentX, currentY);
@@ -789,7 +743,9 @@ export async function initDraw(
         dragStartX = currentX;
         dragStartY = currentY;
         redrawCanvas(canvas, ctx, isDarkModeGlobal);
-        drawSelectionBox(ctx, elements[selectedElementIndex]);
+        if (elements[selectedElementIndex]) {
+          drawSelectionBox(ctx, elements[selectedElementIndex]);
+        }
         return;
       }
 
@@ -800,7 +756,9 @@ export async function initDraw(
         const dy = newY - elements[selectedElementIndex].y;
         moveElement(elements[selectedElementIndex], dx, dy);
         redrawCanvas(canvas, ctx, isDarkModeGlobal);
-        drawSelectionBox(ctx, elements[selectedElementIndex]);
+        if (elements[selectedElementIndex]) {
+          drawSelectionBox(ctx, elements[selectedElementIndex]);
+        }
         return;
       }
       return;
@@ -975,13 +933,7 @@ function drawElement(ctx: CanvasRenderingContext2D, element: DrawingElement) {
         ctx.stroke();
       }
       break;
-    case "text":
-      if (element.text) {
-        ctx.font = "16px Arial";
-        ctx.fillStyle = strokeColor;
-        ctx.fillText(element.text, element.x, element.y);
-      }
-      break;
+
   }
 }
 
@@ -1007,14 +959,3 @@ function redrawCanvasWithPreview(
   drawElement(ctx, previewElement);
 }
 
-async function getExistingElements(roomId: string): Promise<DrawingElement[]> {
-  try {
-    const res = await axios.get(`${HTTP_BACKEND}/drawings/${roomId}`);
-    const drawings = res.data.drawings || [];
-    console.log(`Loaded ${drawings.length} existing drawings for room ${roomId}`);
-    return drawings;
-  } catch (error) {
-    console.error("Failed to load existing elements:", error);
-    return [];
-  }
-}

@@ -1,54 +1,35 @@
 "use client";
 
-import { WS_URL, HTTP_BACKEND } from "@/config";
-import { useEffect, useState } from "react";
+import { WS_URL } from "@/config";
+import { useEffect, useState, useRef } from "react";
 import { Canvas } from "./Canvas";
 import { Loader2, AlertCircle } from "lucide-react";
-import axios from "axios";
 
 export function RoomCanvas({ roomId }: { roomId: string }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
-  const [numericRoomId, setNumericRoomId] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<
     "connecting" | "connected" | "error"
   >("connecting");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const fetchRoomAndConnect = async () => {
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connect = () => {
       try {
-        const response = await axios.get(`${HTTP_BACKEND}/room/${roomId}`);
-        const room = response.data.room;
-        
-        if (!room) {
-          setConnectionStatus("error");
-          setErrorMessage("Room not found");
-          return;
-        }
-
-        setNumericRoomId(room.id);
-
-        const token =
-          localStorage.getItem("token") ||
-          "guest_" + Math.random().toString(36).substring(7);
-
-        const ws = new WebSocket(`${WS_URL}?token=${token}`);
+        const ws = new WebSocket(`${WS_URL}`);
+        wsRef.current = ws;
 
         ws.onopen = () => {
           setConnectionStatus("connected");
           setSocket(ws);
-          ws.send(
-            JSON.stringify({
-              type: "join_room",
-              roomId: room.id.toString(),
-            })
-          );
         };
 
         ws.onclose = () => {
           setConnectionStatus("connecting");
           setSocket(null);
-          setTimeout(fetchRoomAndConnect, 3000);
+          reconnectTimer = setTimeout(connect, 3000);
         };
 
         ws.onerror = (error) => {
@@ -57,17 +38,22 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
           setErrorMessage("Failed to connect to the collaboration server");
         };
       } catch (error) {
-        console.error("Failed to fetch room:", error);
+        console.error("Failed to setup WebSocket:", error);
         setConnectionStatus("error");
         setErrorMessage("Unable to establish connection");
       }
     };
 
-    fetchRoomAndConnect();
+    connect();
 
     return () => {
-      if (socket) {
-        socket.close();
+      clearTimeout(reconnectTimer);
+      if (wsRef.current) {
+        // Remove listeners so it doesn't trigger onclose reconnects
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.onopen = null;
+        wsRef.current.close();
       }
     };
   }, [roomId]);
@@ -92,7 +78,7 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
     );
   }
 
-  if (!socket || connectionStatus === "connecting" || !numericRoomId) {
+  if (!socket || connectionStatus === "connecting") {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50 dark:bg-slate-900 bg-dot-pattern transition-colors">
         <div className="text-center bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 p-8 rounded-2xl shadow-lg animate-in fade-in zoom-in-95 duration-300">
@@ -111,5 +97,5 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
     );
   }
 
-  return <Canvas roomId={numericRoomId.toString()} socket={socket} />;
+  return <Canvas roomId={roomId} socket={socket} />;
 }

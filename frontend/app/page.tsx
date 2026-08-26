@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/button";
 import {
   Palette,
@@ -13,101 +13,19 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { HTTP_BACKEND } from "@/config";
 import { useClientOnly } from "../hooks/useClientOnly";
 
 function App() {
   const [roomName, setRoomName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [user, setUser] = useState<{ name: string; token: string } | null>(null);
   const router = useRouter();
   const isClient = useClientOnly();
 
-  useEffect(() => {
-    if (isClient && typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      const userName = localStorage.getItem("userName");
-      if (token && userName) {
-        setUser({ name: userName, token });
-      }
+  const createRoom = () => {
+    let slug = roomName.trim();
+    if (!slug) {
+      slug = `demo-${Math.random().toString(36).substring(2, 8)}`;
     }
-  }, [isClient]);
-
-  const createRoom = async () => {
-    if (!roomName.trim()) {
-      alert("Please enter a room name");
-      return;
-    }
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Please sign in first to create a room");
-      router.push("/signin");
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const response = await axios.post(
-        `${HTTP_BACKEND}/room`,
-        { name: roomName },
-        {
-          headers: {
-            authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.data.roomId || response.data.slug) {
-        const roomSlug = response.data.slug || roomName;
-        router.push(`/canvas/${roomSlug}`);
-      } else {
-        alert("Failed to create room: No room ID returned");
-      }
-    } catch (error) {
-      console.error("Failed to create room:", error);
-      alert("Failed to create room.");
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const joinRandomRoom = async () => {
-    const randomId = `demo-${Math.random().toString(36).substring(2, 8)}`;
-    
-    setIsCreating(true);
-    try {
-      let token = localStorage.getItem("token");
-      
-      if (!token) {
-        const guestToken = `guest_${Math.random().toString(36).substring(7)}`;
-        localStorage.setItem("token", guestToken);
-        token = guestToken;
-      }
-      
-      const response = await axios.post(
-        `${HTTP_BACKEND}/room`,
-        { name: randomId },
-        {
-          headers: {
-            authorization: token,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.data.roomId || response.data.slug) {
-        const roomSlug = response.data.slug || randomId;
-        router.push(`/canvas/${roomSlug}`);
-      }
-    } catch (error) {
-      console.error("Failed to create demo room:", error);
-      alert("Failed to create demo room");
-    } finally {
-      setIsCreating(false);
-    }
+    router.push(`/canvas/${slug}`);
   };
 
   return (
@@ -120,28 +38,6 @@ function App() {
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Excalidraw</span>
           </Link>
-
-          <div className="flex items-center gap-4">
-            {isClient && user ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300 hidden sm:inline-block">
-                  {user.name}
-                </span>
-                <Button variant="outline" size="sm" onClick={() => { localStorage.clear(); setUser(null); }}>
-                  Sign Out
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link href="/signin">
-                  <Button variant="ghost" size="sm">Log in</Button>
-                </Link>
-                <Link href="/signup">
-                  <Button variant="primary" size="sm" className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm">Sign up</Button>
-                </Link>
-              </div>
-            )}
-          </div>
         </div>
       </header>
 
@@ -156,37 +52,24 @@ function App() {
         </h1>
         
         <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mb-12">
-          Collaborate with your team in real-time. No sign-up required to start drawing.
+          Collaborate with your team in real-time. Just share the URL and start drawing.
         </p>
 
         <div className="w-full max-w-xl mx-auto mb-8">
           {isClient ? (
-            user ? (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="text"
-                  placeholder="Name your workspace..."
-                  value={roomName}
-                  onChange={(e) => setRoomName(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && createRoom()}
-                  className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 shadow-sm transition-all"
-                />
-                <Button variant="primary" size="lg" onClick={createRoom} disabled={!roomName.trim() || isCreating} className="bg-violet-600 hover:bg-violet-700 text-white py-3 shadow-sm whitespace-nowrap">
-                  {isCreating ? "Creating..." : <><Plus className="w-4 h-4 mr-2 inline" /> Create Room</>}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="primary" size="lg" onClick={joinRandomRoom} disabled={isCreating} className="bg-violet-600 hover:bg-violet-700 text-white px-8 text-base shadow-sm">
-                  {isCreating ? "Starting..." : "Start Drawing"}
-                </Button>
-                <Link href="/signup">
-                  <Button variant="outline" size="lg" className="px-8 text-base bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 shadow-sm">
-                    Sign Up
-                  </Button>
-                </Link>
-              </div>
-            )
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                placeholder="Name your room... (optional)"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && createRoom()}
+                className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 shadow-sm transition-all text-black dark:text-white"
+              />
+              <Button variant="primary" size="lg" onClick={createRoom} className="bg-violet-600 hover:bg-violet-700 text-white py-3 shadow-sm whitespace-nowrap">
+                <Plus className="w-4 h-4 mr-2 inline" /> Go to Room
+              </Button>
+            </div>
           ) : (
              <div className="flex justify-center gap-4"><div className="w-32 h-12 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-lg" /></div>
           )}
@@ -211,8 +94,8 @@ function App() {
             <div className="w-10 h-10 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center mb-4">
               <Users2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
             </div>
-            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Organized Workspaces</h3>
-            <p className="text-slate-600 dark:text-slate-400 text-sm">Create dedicated rooms for every project and share instantly.</p>
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Instant Access</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm">No signups required. Create a room instantly and share the URL.</p>
           </div>
         </div>
       </main>
@@ -221,7 +104,7 @@ function App() {
         <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
           <div>© 2025 Excalidraw Clone. All rights reserved.</div>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2">
+            <a href="https://github.com/arjunkumar811/Excalidraw" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-2">
               <Github className="w-4 h-4" /> GitHub
             </a>
           </div>
